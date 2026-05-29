@@ -10,6 +10,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { logoutProvider } from "../../../../api/ProviderAPI";
 
 const { width } = Dimensions.get('window');
 
@@ -36,10 +38,11 @@ const ProfileScreen = () => {
     pan: "ABCDE1234F",
     isVerified: true,
   };
+  const navigation = useNavigation()
 
   const MenuItem = ({ icon, title, subtitle, isLast, color = COLORS.secondary, onPress }) => (
-    <TouchableOpacity 
-      style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]} 
+    <TouchableOpacity
+      style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]}
       onPress={onPress}
     >
       <View style={[styles.iconContainer, { backgroundColor: color + '10' }]}>
@@ -56,7 +59,7 @@ const ProfileScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        
+
         {/* Profile Header */}
         <View style={styles.header}>
           <View style={styles.imageWrapper}>
@@ -69,7 +72,7 @@ const ProfileScreen = () => {
           </View>
           <Text style={styles.nameText}>{provider.fullName}</Text>
           <Text style={styles.categoryText}>{provider.serviceCategory}</Text>
-          
+
           <TouchableOpacity style={styles.editBtn}>
             <Text style={styles.editBtnText}>Edit Profile</Text>
           </TouchableOpacity>
@@ -91,21 +94,22 @@ const ProfileScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Business Settings</Text>
           <View style={styles.menuCard}>
-            <MenuItem 
-              icon="construct-outline" 
-              title="My Services" 
-              subtitle="Manage prices and timing" 
+            <MenuItem
+              icon="construct-outline"
+              title="My Services"
+              subtitle="Manage prices and timing"
             />
-            <MenuItem 
-              icon="time-outline" 
-              title="Work Availability" 
-              subtitle="Set your working hours" 
+            <MenuItem
+              icon="time-outline"
+              title="Work Availability"
+              subtitle="Set your working hours"
+              onPress={() => navigation.navigate("ManageWorkingHours")}
             />
-            <MenuItem 
-              icon="wallet-outline" 
-              title="Payout Settings" 
-              subtitle="Bank account for earnings" 
-              isLast 
+            <MenuItem
+              icon="wallet-outline"
+              title="Payout Settings"
+              subtitle="Bank account for earnings"
+              isLast
             />
           </View>
         </View>
@@ -113,23 +117,28 @@ const ProfileScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account & Privacy</Text>
           <View style={styles.menuCard}>
-            <MenuItem 
-              icon="notifications-outline" 
-              title="Notifications" 
+            <MenuItem
+              icon="notifications-outline"
+              title="Notifications"
             />
-            <MenuItem 
-              icon="lock-closed-outline" 
-              title="Privacy Policy" 
+            <MenuItem
+              icon="lock-closed-outline"
+              title="Privacy Policy"
             />
-            <MenuItem 
-              icon="help-circle-outline" 
-              title="Support Center" 
-              isLast 
+            <MenuItem
+              icon="help-circle-outline"
+              title="Support Center"
+              isLast
             />
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn}>
+        <TouchableOpacity style={styles.logoutBtn}
+          onPress={async () => {
+            await logoutProvider();
+            navigation.replace("Login");
+          }}
+        >
           <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
           <Text style={styles.logoutText}>Logout Account</Text>
         </TouchableOpacity>
@@ -144,7 +153,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    paddingTop:20,
+    paddingTop: 20,
   },
   header: {
     alignItems: 'center',

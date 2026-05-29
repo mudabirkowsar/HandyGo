@@ -32,9 +32,6 @@ export const registerUser = (data) => API.post('/user-auth/register', data);
 
 export const loginUser = async (credentials) => {
     const response = await API.post('/user-auth/login', credentials);
-    if (response.data.token) {
-        await AsyncStorage.setItem('userToken', response.data.token);
-    }
     return response;
 };
 
@@ -53,9 +50,15 @@ export const getCompanyProfile = () => API.get('/companies/me');
 export const updateCompanyProfile = (data) => API.put('/companies/update-profile', data);
 
 //Provider Routes
-
+export const fetchAllProviders = () => API.get('/providers/all');
+export const fetchProviderById = (id) => API.get(`/providers/${id}`);
 export const getProviderProfile = () => API.get('/providers/me');
 export const updateProviderProfile = (data) => API.put('/providers/update-profile', data);
+export const fetchProvidersWorkingHours = () => API.get(`/providers/working-hours`);
+export const updateProvidersWorkingHours = (data) => API.put(`/providers/working-hours`, data);
+export const updateWorkingStatus = (data) => API.patch(`/providers/working-hours/toggle-day`, data);
+
+
 
 // --- LOGOUT ---
 export const logout = async () => {

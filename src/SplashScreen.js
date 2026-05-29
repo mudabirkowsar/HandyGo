@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useContext } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,6 @@ import {
   Easing,
   Alert,
 } from 'react-native';
-import { AuthContext } from './context/AuthContext'; // Ensure this path matches your context file location
 
 const { width } = Dimensions.get('window');
 
@@ -29,8 +28,6 @@ const COLORS = {
 };
 
 export default function SplashScreen({ navigation }) {
-  // Consume the reactive loading state and user profiles from your AuthContext
-  const { user, userToken, loading } = useContext(AuthContext);
 
   // Animation Values
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -82,44 +79,13 @@ export default function SplashScreen({ navigation }) {
     }).start();
   }, []);
 
-  // Effect 2: Safe Session Verification & Routing Check
   useEffect(() => {
-    // Variable to hold timer reference for local layout block tracking
-    let determineNavigationRoute;
-
-    // Only attempt routing options when AuthProvider has finished reading data from storage
-    if (!loading) {
-      determineNavigationRoute = setTimeout(() => {
-        
-        if (userToken && user) {
-          // Normalize the role string to lowercase to prevent configuration mismatches
-          const userRole = user.role ? String(user.role).toLowerCase().trim() : "customer";
-
-          console.log("SPLASH LOGGED ROLE DETECTED:", userRole);
-          // Alert.alert("Session Found", `Retrieved user role from context: ${userRole}`);
-
-          if (userRole === "customer" || userRole === "user") {
-            navigation.replace('MainTabs');
-          } else if (userRole === "provider") {
-            navigation.replace('ProviderProfileScreen');
-          } else {
-            navigation.replace('Login');
-          }
-        } else {
-          console.log("SPLASH LOG: No active user token session discovered.");
-          navigation.replace('Login');
-        }
-
-      }, 3200); // Gives the 3-second loader bar visual animation time to complete cleanly
-    }
-
-    // FIXED: The cleanup function is now returned properly at the top level of the hook
-    return () => {
-      if (determineNavigationRoute) {
-        clearTimeout(determineNavigationRoute);
-      }
-    };
-  }, [loading, user, userToken]);
+    // Simulate initialization tasks (e.g., checking auth, loading resources)
+    const timer = setTimeout(() => {
+      navigation.replace('Login');
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Interpolate loading width
   const loaderWidth = loadingProgress.interpolate({

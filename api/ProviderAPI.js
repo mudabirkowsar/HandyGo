@@ -1,9 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '@env'; 
+import { EXPO_PUBLIC_API_BASE_URL } from '@env';
 
 const ProviderAPI = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: EXPO_PUBLIC_API_BASE_URL,
     timeout: 15000,
     headers: {
         'Content-Type': 'application/json',
@@ -30,15 +30,13 @@ ProviderAPI.interceptors.request.use(async (config) => {
 // Login as a Service Provider
 export const loginProvider = async (credentials) => {
     const response = await ProviderAPI.post('/provider-auth/login', credentials);
-    if (response.data.token) {
-        // Storing as providerToken as requested
-        await AsyncStorage.setItem('providerToken', response.data.token);
-    }
     return response;
 };
 
 // Register as a Service Provider
 export const registerProvider = (data) => ProviderAPI.post('/provider-auth/register', data);
+
+export const updateProviderDocs = (data) => ProviderAPI.post('/provider-auth/upload-documents', data);
 
 // Get Provider Profile
 export const getProviderProfile = () => ProviderAPI.get('/provider/profile');

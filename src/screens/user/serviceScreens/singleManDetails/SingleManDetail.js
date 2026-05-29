@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,9 +8,12 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from "@expo/vector-icons";
+import { fetchProviderById } from '../../../../../api/UserAPI';
 
 const { width } = Dimensions.get('window');
 
@@ -24,26 +27,80 @@ const COLORS = {
   border: "#E5E7EB",
   white: "#FFFFFF",
   star: "#FFD700",
+  error: "#EF4444",
 };
 
-const SingleManDetail = () => {
+export default function SingleManDetail() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { provider } = route.params;
+  
+  // Accept minimal provider metadata passed via navigation parameters
+  const { provider: partialProvider } = route.params;
+
+  const [provider, setProvider] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getDetailedProviderProfile = async () => {
+      try {
+        const response = await fetchProviderById(partialProvider._id);
+        if (response.data && response.data.success) {
+          // Destructure according to your exact key envelope structure 'response.data.provider'
+          setProvider(response.data.provider);
+        } else {
+          setProvider(partialProvider);
+        }
+      } catch (error) {
+        console.log("FETCH PROVIDER BY ID ERROR:", error?.response?.data || error.message);
+        setProvider(partialProvider);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (partialProvider?._id) {
+      getDetailedProviderProfile();
+    } else {
+      setProvider(partialProvider);
+      setLoading(false);
+    }
+  }, [partialProvider]);
 
   const handleBooking = () => {
-    // Navigate to your booking or checkout screen
+    if (!provider) return;
     // navigation.navigate("BookingScreen", { providerId: provider._id });
     console.log("Proceeding to booking for:", provider.fullName);
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Syncing specialist details...</Text>
+      </View>
+    );
+  }
+
+  if (!provider) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Ionicons name="alert-circle-outline" size={40} color={COLORS.subtext} />
+        <Text style={styles.loadingText}>Provider profile unavailable.</Text>
+      </View>
+    );
+  }
+
+  // Days mapping helper to parse nested workingHours schema cleanly
+  const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        
         {/* Top Image Section */}
         <View style={styles.imageHeader}>
           <Image
-            source={{ uri: provider.profileImage || "https://via.placeholder.com/300" }}
+            source={{ uri: provider.profileImage || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400" }}
             style={styles.mainImage}
           />
           <TouchableOpacity 
@@ -55,26 +112,29 @@ const SingleManDetail = () => {
         </View>
 
         <View style={styles.contentContainer}>
-          {/* Title & Category */}
+          
+          {/* Title & Category Layout */}
           <View style={styles.titleRow}>
-            <View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={styles.fullName}>{provider.fullName}</Text>
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{provider.serviceCategory}</Text>
+                <Text style={styles.categoryText}>
+                  {provider.serviceCategory?.name || "Independent Pro"}
+                </Text>
               </View>
             </View>
-            {provider.isVerified && (
+            {provider.verificationStatus === "approved" && (
               <View style={styles.verifiedContainer}>
-                <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
+                <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
                 <Text style={styles.verifiedText}>Verified</Text>
               </View>
             )}
           </View>
 
-          {/* Stats Bar */}
+          {/* Core Analytics Stats Bar */}
           <View style={styles.statsBar}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{provider.averageRating}</Text>
+              <Text style={styles.statValue}>{provider.averageRating || "0.0"}</Text>
               <View style={styles.statLabelRow}>
                 <Ionicons name="star" size={14} color={COLORS.star} />
                 <Text style={styles.statLabel}>Rating</Text>
@@ -82,74 +142,113 @@ const SingleManDetail = () => {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{provider.experience} yrs</Text>
+              <Text style={styles.statValue}>{provider.experienceYears || 0} Yrs</Text>
               <Text style={styles.statLabel}>Experience</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{provider.totalReviews}</Text>
+              <Text style={styles.statValue}>{provider.totalReviews || 0}</Text>
               <Text style={styles.statLabel}>Reviews</Text>
             </View>
           </View>
 
-          {/* Services Section */}
+          {/* Category Context Description */}
+          {provider.serviceCategory?.description && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>About Service</Text>
+              <Text style={styles.descriptionText}>{provider.serviceCategory.description}</Text>
+            </View>
+          )}
+
+          {/* New Section: Working Hours Schedule */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Available Services</Text>
-            {provider.services?.map((service, index) => (
-              <View key={index} style={styles.serviceCard}>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceTitle}>{service.title}</Text>
-                  <View style={styles.durationRow}>
-                    <Ionicons name="time-outline" size={14} color={COLORS.subtext} />
-                    <Text style={styles.durationText}>{service.estimatedDuration}</Text>
+            <Text style={styles.sectionTitle}>Weekly Availability</Text>
+            <View style={styles.scheduleCard}>
+              {daysOfWeek.map((day) => {
+                const isAvailable = provider.workingHours?.[day]?.isAvailable;
+                return (
+                  <View key={day} style={styles.scheduleRow}>
+                    <Text style={styles.dayText}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
+                    <View style={styles.statusBadgeWrapper}>
+                      <Ionicons 
+                        name={isAvailable ? "checkmark-circle" : "close-circle"} 
+                        size={18} 
+                        color={isAvailable ? COLORS.primary : COLORS.error} 
+                      />
+                      <Text style={[styles.statusBadgeText, { color: isAvailable ? COLORS.primary : COLORS.error }]}>
+                        {isAvailable ? "Available" : "Closed"}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.priceText}>₹{service.price}</Text>
-                  <Text style={styles.priceType}>{service.priceType}</Text>
-                </View>
-              </View>
-            ))}
+                );
+              })}
+            </View>
           </View>
 
-          {/* Reviews Section */}
+          {/* Operational Available Services Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Reviews</Text>
-            {provider.reviews?.map((review, index) => (
-              <View key={index} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <Text style={styles.reviewUser}>{review.userName}</Text>
-                  <View style={styles.reviewRating}>
-                    <Ionicons name="star" size={12} color={COLORS.star} />
-                    <Text style={styles.reviewRatingText}>{review.rating}</Text>
+            <Text style={styles.sectionTitle}>Available Services</Text>
+            {provider.services && provider.services.length > 0 ? (
+              provider.services.map((service, index) => (
+                <View key={service._id || index} style={styles.serviceCard}>
+                  <View style={styles.serviceInfo}>
+                    <Text style={styles.serviceTitle}>{service.title || service.name}</Text>
+                    <View style={styles.durationRow}>
+                      <Ionicons name="time-outline" size={14} color={COLORS.subtext} />
+                      <Text style={styles.durationText}>{service.estimatedDuration || "Standard"}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.priceText}>₹{service.price}</Text>
+                    <Text style={styles.priceType}>{service.priceType || "Fixed"}</Text>
                   </View>
                 </View>
-                <Text style={styles.reviewComment}>{review.comment}</Text>
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <Ionicons name="construct-outline" size={24} color={COLORS.subtext} style={{ marginBottom: 6 }} />
+                <Text style={styles.emptyText}>Standard base-rate options apply for {provider.serviceCategory?.name || 'this category'}. Click book below to request a custom estimation quote.</Text>
               </View>
-            ))}
+            )}
           </View>
+
         </View>
       </ScrollView>
 
-      {/* Sticky Bottom Booking Button */}
+      {/* Sticky Fixed Bottom Booking Action CTA */}
       <View style={styles.footer}>
         <View>
-          <Text style={styles.footerLabel}>Starting from</Text>
-          <Text style={styles.footerPrice}>₹{provider.services?.[0]?.price || 0}</Text>
+          <Text style={styles.footerLabel}>Service Radius</Text>
+          <Text style={styles.footerPrice}>{provider.serviceRadiusKm || 10} km</Text>
         </View>
-        <TouchableOpacity style={styles.bookButton} onPress={handleBooking}>
+        <TouchableOpacity 
+          style={[styles.bookButton, provider.availabilityStatus === 'offline' && { backgroundColor: COLORS.secondary }]} 
+          onPress={handleBooking}
+        >
           <Text style={styles.bookButtonText}>Book Appointment</Text>
-          <Ionicons name="calendar" size={18} color={COLORS.white} style={{marginLeft: 8}} />
+          <Ionicons name="calendar" size={18} color={COLORS.white} style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: COLORS.subtext,
+    fontWeight: '600',
   },
   imageHeader: {
     width: width,
@@ -167,6 +266,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.9)',
     padding: 8,
     borderRadius: 12,
+    zIndex: 10,
   },
   contentContainer: {
     flex: 1,
@@ -204,6 +304,7 @@ const styles = StyleSheet.create({
   },
   verifiedContainer: {
     alignItems: 'center',
+    minWidth: 50,
   },
   verifiedText: {
     fontSize: 10,
@@ -250,7 +351,43 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: COLORS.secondary,
-    marginBottom: 15,
+    marginBottom: 12,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  scheduleCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border + "50",
+  },
+  dayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.secondary,
+  },
+  statusBadgeWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statusBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   serviceCard: {
     flexDirection: 'row',
@@ -291,38 +428,27 @@ const styles = StyleSheet.create({
     color: COLORS.subtext,
     textTransform: 'capitalize',
   },
-  reviewCard: {
+  emptyCard: {
+    padding: 20,
     backgroundColor: COLORS.background,
-    padding: 15,
     borderRadius: 16,
-    marginBottom: 10,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  reviewUser: {
-    fontWeight: '700',
-    color: COLORS.secondary,
-  },
-  reviewRating: {
-    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
     alignItems: 'center',
   },
-  reviewRatingText: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 3,
-  },
-  reviewComment: {
+  emptyText: {
     fontSize: 13,
     color: COLORS.subtext,
+    textAlign: 'center',
     lineHeight: 18,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
@@ -345,6 +471,11 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   bookButtonText: {
     color: COLORS.white,
@@ -352,5 +483,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
-export default SingleManDetail;

@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
@@ -16,8 +16,9 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { AuthContext } from "../../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loginUser } from "../../../api/UserAPI";
+import { loginProvider } from "../../../api/ProviderAPI";
 
 const { width } = Dimensions.get("window");
 
@@ -33,58 +34,74 @@ const COLORS = {
 };
 
 export default function LoginScreen({ navigation }) {
-  const { loginUser } = useContext(AuthContext);
-
+  const [activeTab, setActiveTab] = useState("user");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => { 
-    AsyncStorage.clear(); // Clear all stored data on app start for testing purposes
-  }, []);
-
   const handleLogin = async () => {
-    if (!identifier.trim() || !password.trim()) {
-      Alert.alert("Error", "Please fill in all fields");
+    // Basic Validation
+    if (!identifier || !password) {
+      Alert.alert("Validation Error", "Please enter both email/phone and password.");
       return;
     }
 
     setIsLoading(true);
+    // Fixed: changed 'phone' to 'identifier' to match your updated controllers
+    const credentials = { identifier, password };
 
     try {
-      const result = await loginUser(identifier, password);
-      console.log("LOGIN RESULT:", result);
-
-      if (result.success) {
-        // Safe string extraction converted to lowercase to match variants like "Customer" or "user"
-        const userRole = result.user?.role ? String(result.user.role).toLowerCase().trim() : "";
-
-        // CHECK ROLE AND ROUTE ACCORDINGLY
-        if (userRole === "customer" || userRole === "user") {
+      if (activeTab === "user") {
+        // --- USER LOGIN LOGIC ---
+        const response = await loginUser(credentials);
+        if (response.data.token) {
+          await AsyncStorage.setItem("userToken", response.data.token);
+          setIsLoading(false);
           navigation.replace("MainTabs");
-        } else if (userRole === "provider") {
-          navigation.replace("ProviderProfileScreen"); 
-        } else {
-          Alert.alert(
-            "Access Denied",
-            `The account role "${result.user?.role}" is not recognized.`
-          );
         }
       } else {
-        Alert.alert(
-          "Login Failed",
-          result.message || "Invalid credentials"
-        );
+        // --- PROVIDER LOGIN LOGIC ---
+        const response = await loginProvider(credentials);
+        const { token, provider } = response.data;
+
+        // 1. Save Token immediately if login is successful
+        if (token) {
+          await AsyncStorage.setItem("providerToken", token);
+        }
+
+        const status = provider.verificationStatus;
+
+        // 2. Logic based on Verification Status
+        if (status === "incomplete") {
+          // Provider has not uploaded documents yet
+          setIsLoading(false);
+          navigation.replace("DocumentsUpload"); 
+        } 
+        else if (status === "pending") {
+          // Provider uploaded documents, waiting for Admin
+          setIsLoading(false);
+          navigation.replace("ShowPopup"); 
+        } 
+        else if (status === "rejected") {
+          // Admin rejected the account
+          setIsLoading(false);
+          Alert.alert(
+            "Account Rejected", 
+            "Your application has been rejected. Please check your email or contact support for details."
+          );
+          // Stay on Login (as requested)
+        } 
+        else if (status === "approved") {
+          // Full access granted
+          setIsLoading(false);
+          navigation.replace("ProviderHome");
+        }
       }
     } catch (error) {
-      console.log(error);
-      Alert.alert(
-        "Error",
-        "Something went wrong"
-      );
-    } finally {
       setIsLoading(false);
+      const errorMsg = error.response?.data?.message || "Something went wrong. Please try again.";
+      Alert.alert("Login Failed", errorMsg);
     }
   };
 
@@ -115,13 +132,42 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.tagline}>Premium Home Services at your door</Text>
           </View>
 
+          {/* TAB SWITCHER */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "user" && styles.activeTab]}
+              onPress={() => setActiveTab("user")}
+            >
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={activeTab === "user" ? COLORS.white : COLORS.subtext}
+              />
+              <Text style={[styles.tabText, activeTab === "user" && styles.activeTabText]}>User</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "provider" && styles.activeTab]}
+              onPress={() => setActiveTab("provider")}
+            >
+              <Ionicons
+                name="construct-outline"
+                size={18}
+                color={activeTab === "provider" ? COLORS.white : COLORS.subtext}
+              />
+              <Text style={[styles.tabText, activeTab === "provider" && styles.activeTabText]}>Provider</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.card}>
-            <Text style={styles.loginTitle}>Login to your account</Text>
+            <Text style={styles.loginTitle}>
+              Login as {activeTab === "user" ? "User" : "Service Provider"}
+            </Text>
 
             <View style={styles.inputWrapper}>
               <Text style={styles.label}>Email or Phone</Text>
               <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color={COLORS.subtext} style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={20} color={COLORS.subtext} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Enter email or phone"
@@ -227,13 +273,13 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginTop: 40,
-    marginBottom: 30,
+    marginTop: 30,
+    marginBottom: 20,
   },
   logoWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 22,
+    width: 70,
+    height: 70,
+    borderRadius: 20,
     backgroundColor: COLORS.white,
     justifyContent: "center",
     alignItems: "center",
@@ -242,22 +288,54 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 15,
     elevation: 5,
-    marginBottom: 15,
+    marginBottom: 10,
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 45,
+    height: 45,
   },
   brandName: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "900",
     color: COLORS.secondary,
     letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.subtext,
-    marginTop: 5,
+    marginTop: 2,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: COLORS.border + "60",
+    padding: 6,
+    borderRadius: 18,
+    marginBottom: 25,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    paddingVertical: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 14,
+    gap: 8,
+  },
+  activeTab: {
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.subtext,
+  },
+  activeTabText: {
+    color: COLORS.white,
   },
   card: {
     backgroundColor: COLORS.white,

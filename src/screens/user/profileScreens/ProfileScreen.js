@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { AuthContext } from "../../../context/AuthContext";
+import { logout } from "../../../../api/UserAPI";
 
 const COLORS = {
   primary: "#08B36A",
@@ -28,7 +28,6 @@ const COLORS = {
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
-  const { logout, user } = useContext(AuthContext);
 
   // Added 'navTarget' properties mapping strictly to your router navigation stack names
   const MENU_ITEMS = [
@@ -46,22 +45,23 @@ const ProfileScreen = () => {
       "Are you sure you want to log out of your account?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Log Out", 
-          style: "destructive", 
+        {
+          text: "Log Out",
+          style: "destructive",
           onPress: async () => {
             await logout();
+            navigation.navigate("Login");
             // This clears active layout states; your Navigation Container will auto-route to 'Login'
-          } 
+          }
         }
       ]
     );
   };
 
   const renderMenuItem = (item) => (
-    <TouchableOpacity 
-      key={item.id} 
-      style={styles.menuItem} 
+    <TouchableOpacity
+      key={item.id}
+      style={styles.menuItem}
       activeOpacity={0.7}
       onPress={() => {
         if (item.navTarget) {
@@ -81,7 +81,7 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
+
         {/* Profile Header */}
         <View style={styles.header}>
           <View style={styles.avatarWrapper}>
@@ -94,8 +94,8 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           </View>
           {/* Dynamically falls back to user context if database values populate */}
-          <Text style={styles.userName}>{user?.name || "Aman Sharma"}</Text>
-          <Text style={styles.userEmail}>{user?.email || "aman.sharma@example.com"}</Text>
+          <Text style={styles.userName}>"Aman Sharma"</Text>
+          <Text style={styles.userEmail}>"aman.sharma@example.com"</Text>
         </View>
 
         {/* Stats Row */}
@@ -125,8 +125,8 @@ const ProfileScreen = () => {
 
           <Text style={[styles.sectionTitle, { marginTop: 25 }]}>General</Text>
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <TouchableOpacity
+              style={styles.menuItem}
               activeOpacity={0.7}
               onPress={handleLogoutPress}
             >

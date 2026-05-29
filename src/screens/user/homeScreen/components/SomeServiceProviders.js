@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -6,11 +6,11 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-// Ensure the import name matches the variable used in your .map()
-import { singleProviders } from "../../../../data/data";
+import { fetchAllProviders } from "../../../../../api/UserAPI";
 
 const COLORS = {
   primary: "#08B36A",
@@ -26,8 +26,38 @@ const COLORS = {
 const SomeServiceProviders = () => {
   const navigation = useNavigation();
 
-  // Limits the display to only the first 6 items
-  const displayProviders = (singleProviders || []).slice(0, 6);
+  // State definitions for loading and live provider array data strings
+  const [providers, setProviders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const getProvidersList = async () => {
+      try {
+        const response = await fetchAllProviders();
+        if (response.data && response.data.success) {
+          setProviders(response.data.providers || []);
+        }
+      } catch (error) {
+        console.log("FETCH ALL PROVIDERS COMPONENT ERROR:", error?.response?.data || error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    getProvidersList();
+  }, []);
+
+  // Limit display viewport layout processing to the first 6 records
+  const displayProviders = providers.slice(0, 6);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { paddingVertical: 40, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="small" color={COLORS.primary} />
+        <Text style={[styles.subtitle, { marginTop: 8 }]}>Loading specialists...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -53,35 +83,39 @@ const SomeServiceProviders = () => {
             activeOpacity={0.9}
             onPress={() => navigation.navigate("SingleManDetail", { provider: item })}
           >
-            {/* Verified Badge conditionally rendered */}
-            {item.isVerified && (
+            {/* Verified Badge conditionally rendered based on verification status key */}
+            {item.verificationStatus === "approved" && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
               </View>
             )}
 
             <Image 
-              source={{ uri: item.profileImage || "https://via.placeholder.com/150" }} 
+              source={{ uri: item.profileImage || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=150" }} 
               style={styles.avatar} 
             />
             
             <Text style={styles.name} numberOfLines={1}>{item.fullName}</Text>
-            <Text style={styles.job}>{item.serviceCategory}</Text>
+            
+            {/* Safely extracts name if object category relation populates */}
+            <Text style={styles.job} numberOfLines={1}>
+              {item.serviceCategory?.name || "General Specialist"}
+            </Text>
 
             <View style={styles.statsRow}>
               <View style={styles.stat}>
                 <Ionicons name="star" size={12} color="#FFD700" />
-                <Text style={styles.statText}>{item.averageRating}</Text>
+                <Text style={styles.statText}>{item.averageRating || 0}</Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.stat}>
-                <Text style={styles.statText}>{item.experience} yrs</Text>
+                <Text style={styles.statText}>{item.experienceYears || 0} yrs</Text>
               </View>
             </View>
 
-            {/* Display starting price if services exist */}
+            {/* Display starting price if services array data elements exist */}
             <Text style={styles.priceText}>
-              Starts at ₹{item.services?.[0]?.price || "0"}
+              Starts at ₹{item.services?.[0]?.price || "299"}
             </Text>
 
             <View style={styles.bookBtn}>

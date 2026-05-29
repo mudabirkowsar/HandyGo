@@ -12,6 +12,9 @@ import ProvirderProfileScreen from "../screens/provider/profileScreens/Provirder
 import UpdateAvailabilityScreen from "../screens/provider/updateScreens/UpdateAvailabilityScreen";
 import ViewProfileScreen from "../screens/user/profileScreens/ViewProfileScreen";
 import EditProfileScreen from "../screens/user/profileScreens/EditUserProfileScreen";
+import WorkingHoursScreen from "../screens/provider/extraScreens/WorkingHoursScreen";
+import DocumentsScreen from "../screens/provider/documents/DocumentsScreen";
+import ShowPopup from "../screens/auth/ShowPopup";
 
 const Stack = createNativeStackNavigator();
 
@@ -31,8 +34,11 @@ export default function AppNavigator() {
             <Stack.Screen name="SingleManDetail" component={SingleManDetail} />
 
             <Stack.Screen name="ProviderHome" component={ProviderHome} />
+            <Stack.Screen name="DocumentsUpload" component={DocumentsScreen} />
+            <Stack.Screen name="ShowPopup" component={ShowPopup} />
             <Stack.Screen name="ProviderProfile" component={ProvirderProfileScreen} />
             <Stack.Screen name="UpdateAvailability" component={UpdateAvailabilityScreen} />
+            <Stack.Screen name="ManageWorkingHours" component={WorkingHoursScreen} />
         </Stack.Navigator>
     );
 }
