@@ -11,6 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
+import Navbar from './components/Navbar';
 
 const { width } = Dimensions.get('window');
 
@@ -49,43 +50,9 @@ const DashboardHome = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
-        {/* Top Profile & Toggle Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Good Morning,</Text>
-            <Text style={styles.nameText}>{providerData.name}</Text>
-          </View>
-          
-          <View style={styles.toggleWrapper}>
-            <Text style={[styles.statusLabel, { color: isOnline ? COLORS.primary : COLORS.subtext }]}>
-              {isOnline ? "Online" : "Offline"}
-            </Text>
-            <Switch
-              trackColor={{ false: "#CBD5E1", true: COLORS.primary + '50' }}
-              thumbColor={isOnline ? COLORS.primary : "#94A3B8"}
-              onValueChange={() => setIsOnline(!isOnline)}
-              value={isOnline}
-            />
-          </View>
-        </View>
 
-        {/* Status Alert */}
-        <View style={[
-          styles.statusCard, 
-          { backgroundColor: isOnline ? COLORS.primary + '10' : COLORS.danger + '05' }
-        ]}>
-          <Ionicons 
-            name={isOnline ? "radio-button-on" : "moon"} 
-            size={20} 
-            color={isOnline ? COLORS.primary : COLORS.danger} 
-          />
-          <Text style={[styles.statusText, { color: isOnline ? COLORS.primary : COLORS.danger }]}>
-            {isOnline 
-              ? "Your profile is live. New leads will appear here." 
-              : "You are currently offline. Customers cannot book you."}
-          </Text>
-        </View>
+        <Navbar />
+
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
@@ -116,7 +83,7 @@ const DashboardHome = () => {
             </View>
             <View style={styles.divider} />
           </View>
-          
+
           <View style={styles.bookingRight}>
             <Text style={styles.customerName}>Aman Deep</Text>
             <Text style={styles.jobType}>Pipe Leakage Repair</Text>
@@ -157,7 +124,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    paddingTop:20,
+    paddingTop: 0,
   },
   scrollContent: {
     paddingBottom: 100, // Account for Tab Bar
