@@ -8,13 +8,13 @@ import SplashScreen from "../SplashScreen";
 import NotificationScreen from "../screens/user/notificationScreens/NotificationScreen";
 import SingleManDetail from "../screens/user/serviceScreens/singleManDetails/SingleManDetail";
 import ProviderHome from "../screens/provider/ProviderHome";
-import ProvirderProfileScreen from "../screens/provider/profileScreens/ProvirderProfileScreen";
 import UpdateAvailabilityScreen from "../screens/provider/updateScreens/UpdateAvailabilityScreen";
 import ViewProfileScreen from "../screens/user/profileScreens/ViewProfileScreen";
 import EditProfileScreen from "../screens/user/profileScreens/EditUserProfileScreen";
 import WorkingHoursScreen from "../screens/provider/extraScreens/WorkingHoursScreen";
 import DocumentsScreen from "../screens/provider/documents/DocumentsScreen";
 import ShowPopup from "../screens/auth/ShowPopup";
+import ProviderProfileScreen from "../screens/provider/profileScreens/ProviderProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -36,7 +36,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ProviderHome" component={ProviderHome} />
             <Stack.Screen name="DocumentsUpload" component={DocumentsScreen} />
             <Stack.Screen name="ShowPopup" component={ShowPopup} />
-            <Stack.Screen name="ProviderProfile" component={ProvirderProfileScreen} />
+            <Stack.Screen name="ProviderProfile" component={ProviderProfileScreen} />
             <Stack.Screen name="UpdateAvailability" component={UpdateAvailabilityScreen} />
             <Stack.Screen name="ManageWorkingHours" component={WorkingHoursScreen} />
         </Stack.Navigator>

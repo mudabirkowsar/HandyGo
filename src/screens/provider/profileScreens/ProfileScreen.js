@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,10 +8,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { logoutProvider } from "../../../../api/ProviderAPI";
+
+// API Services Imports
+import { getProviderProfile, logoutProvider } from "../../../../api/ProviderAPI";
 
 const { width } = Dimensions.get('window');
 
@@ -28,17 +31,30 @@ const COLORS = {
 };
 
 const ProfileScreen = () => {
-  // Mock Data from your provider structure
-  const provider = {
-    fullName: "Rajesh Kumar",
-    serviceCategory: "Master Plumber",
-    profileImage: "https://randomuser.me/api/portraits/men/1.jpg",
-    email: "rajesh.fixit@example.com",
-    phone: "+91 98765 43210",
-    pan: "ABCDE1234F",
-    isVerified: true,
+  const navigation = useNavigation();
+  const [isLoading, setIsLoading] = useState(true);
+  const [providerData, setProviderData] = useState(null);
+
+  useEffect(() => {
+    loadProviderProfile();
+  }, []);
+
+  const loadProviderProfile = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getProviderProfile();
+      if (response.data && response.data.success) {
+        setProviderData(response.data.provider);
+      } else if (response.data) {
+        // Fallback in case your response returns the object directly
+        setProviderData(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to load provider profile metrics:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
-  const navigation = useNavigation()
 
   const MenuItem = ({ icon, title, subtitle, isLast, color = COLORS.secondary, onPress }) => (
     <TouchableOpacity
@@ -56,6 +72,18 @@ const ProfileScreen = () => {
     </TouchableOpacity>
   );
 
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  // Fallback defaults if database values are empty strings or arrays are loading
+  const displayImage = providerData?.profileImage || "https://randomuser.me/api/portraits/legacy/3.jpg";
+  const isAccountApproved = providerData?.verificationStatus === "approved";
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -63,17 +91,20 @@ const ProfileScreen = () => {
         {/* Profile Header */}
         <View style={styles.header}>
           <View style={styles.imageWrapper}>
-            <Image source={{ uri: provider.profileImage }} style={styles.profileImage} />
-            {provider.isVerified && (
+            <Image source={{ uri: displayImage }} style={styles.profileImage} />
+            {isAccountApproved && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="shield-checkmark" size={16} color={COLORS.white} />
               </View>
             )}
           </View>
-          <Text style={styles.nameText}>{provider.fullName}</Text>
-          <Text style={styles.categoryText}>{provider.serviceCategory}</Text>
+          <Text style={styles.nameText}>{providerData?.fullName || "Service Provider"}</Text>
+          <Text style={styles.categoryText}>{providerData?.serviceProvided || "Professional Partner"}</Text>
 
-          <TouchableOpacity style={styles.editBtn}>
+          <TouchableOpacity 
+            style={styles.editBtn}
+            onPress={() => navigation.navigate("ProviderProfile")}
+          >
             <Text style={styles.editBtnText}>Edit Profile</Text>
           </TouchableOpacity>
         </View>
@@ -82,7 +113,7 @@ const ProfileScreen = () => {
         <View style={styles.infoRow}>
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>PAN Number</Text>
-            <Text style={styles.infoValue}>{provider.pan}</Text>
+            <Text style={styles.infoValue}>{providerData?.panNumber || "Not Linked"}</Text>
           </View>
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Aadhaar</Text>
@@ -133,10 +164,16 @@ const ProfileScreen = () => {
           </View>
         </View>
 
+        {/* Logout Trigger Option */}
         <TouchableOpacity style={styles.logoutBtn}
           onPress={async () => {
-            await logoutProvider();
-            navigation.replace("Login");
+            try {
+              await logoutProvider();
+            } catch (err) {
+              console.error("Logout session termination failed:", err);
+            } finally {
+              navigation.replace("Login");
+            }
           }}
         >
           <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
@@ -154,6 +191,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
     paddingTop: 20,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
   },
   header: {
     alignItems: 'center',

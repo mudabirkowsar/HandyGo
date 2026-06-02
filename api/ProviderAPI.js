@@ -30,7 +30,7 @@ ProviderAPI.interceptors.request.use(async (config) => {
 // PROVIDER SPECIFIC ENDPOINTS
 // ==========================================
 
-// Login as a Service Provider
+//Register and Login as a Service Provider
 export const loginProvider = async (credentials) => {
     try {
         const response = await ProviderAPI.post('/provider-auth/login', credentials);
@@ -40,26 +40,20 @@ export const loginProvider = async (credentials) => {
         throw error;
     }
 };
-
-// Register as a Service Provider
 export const registerProvider = (data) => ProviderAPI.post('/provider-auth/register', data);
-
 export const updateProviderDocs = (data) => ProviderAPI.post('/provider-auth/upload-documents', data);
 
 // Get Provider Profile
-export const getProviderProfile = () => ProviderAPI.get('/provider/profile');
-
-// Update Provider Availability
-export const updateAvailability = (status) => ProviderAPI.patch('/provider/availability', { status });
+export const getProviderProfile = () => ProviderAPI.get('/providers/me');
+export const updateProfile = (data) => ProviderAPI.put('/providers/update-profile', data);
+export const updateProviderLocation = (coordinates) => ProviderAPI.put('/providers/update-location', coordinates);
+export const updateProviderAvailability = (status) => ProviderAPI.put('/providers/update-availability', { availabilityStatus: status });
 
 //Working hours 
 export const fetchWorkingHours = () => ProviderAPI.get('/provider-hours/working-hours');
 export const updateWorkingHours = (workingHours) => ProviderAPI.put('/provider-hours/working-hours', { workingHours });
 export const providerUpdateOvertime = (overtimeData) => ProviderAPI.put('/provider-hours/overtime', { ...overtimeData });
 
-// Add/Update a Service
-export const addService = (serviceData) => ProviderAPI.post('/provider/services', serviceData);
-export const deleteService = (serviceId) => ProviderAPI.delete(`/provider/services/${serviceId}`);
 
 // Logout
 export const logoutProvider = async () => {
