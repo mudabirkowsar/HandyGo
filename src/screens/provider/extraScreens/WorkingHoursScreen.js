@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     StyleSheet,
     View,
@@ -8,9 +8,10 @@ import {
     ScrollView,
     StatusBar,
     ActivityIndicator,
-    Alert,
     Switch,
     Platform,
+    Animated,
+    Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -50,7 +51,6 @@ const GENERATED_HOURS = Array.from({ length: 24 }).flatMap((_, i) => {
     return [`${formattedHour}:00 ${ampm}`, `${formattedHour}:30 ${ampm}`];
 });
 
-// Helper utilities to translate 12h AM/PM options to clean 24h backend format configurations
 const convertTo24Hour = (time12h) => {
     if (!time12h) return "";
     const [time, modifier] = time12h.split(" ");
@@ -84,20 +84,71 @@ export default function WorkingHoursScreen({ navigation }) {
         sunday: { isAvailable: false, start: "09:00 AM", end: "06:00 PM" },
     });
 
-    // Overtime/Extra Configuration States
     const [isOvertimeEnabled, setIsOvertimeEnabled] = useState(false);
     const [overtimeStart, setOvertimeStart] = useState("06:00 PM");
     const [overtimeEnd, setOvertimeEnd] = useState("09:00 PM");
 
     const [pickerConfig, setPickerConfig] = useState({
         visible: false,
-        dayKey: null, // 'overtime' or specific week day name keys
-        timeType: null, // 'start' or 'end'
+        dayKey: null,
+        timeType: null,
     });
+
+    // CUSTOM ALERT/POPUP STATE Configuration
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        type: "success", // "success" or "error"
+        title: "",
+        message: "",
+        onClose: null
+    });
+    
+    const scaleAnim = useRef(new Animated.Value(0.3)).current;
+    const opacityAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         loadScheduleData();
     }, []);
+
+    // Custom Popup Animation Control
+    useEffect(() => {
+        if (alertConfig.visible) {
+            Animated.parallel([
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    tension: 50,
+                    friction: 8,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(opacityAnim, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                })
+            ]).start();
+        } else {
+            scaleAnim.setValue(0.3);
+            opacityAnim.setValue(0);
+        }
+    }, [alertConfig.visible]);
+
+    const showCustomPopup = (type, title, message, onClose = null) => {
+        setAlertConfig({
+            visible: true,
+            type,
+            title,
+            message,
+            onClose
+        });
+    };
+
+    const closeCustomPopup = () => {
+        const pendingCallback = alertConfig.onClose;
+        setAlertConfig(prev => ({ ...prev, visible: false }));
+        if (pendingCallback) {
+            setTimeout(() => pendingCallback(), 300);
+        }
+    };
 
     const loadScheduleData = async () => {
         setIsLoading(true);
@@ -129,7 +180,7 @@ export default function WorkingHoursScreen({ navigation }) {
             }
         } catch (error) {
             console.error("Fetch working hours failed:", error);
-            Alert.alert("Error", "Failed to load working hours profile configuration.");
+            showCustomPopup("error", "Loading Failed", "Failed to load working hours profile configuration.");
         } finally {
             setIsLoading(false);
         }
@@ -164,7 +215,6 @@ export default function WorkingHoursScreen({ navigation }) {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            // 1. Prepare converted standard 24-hour payload structure
             const standardHoursPayload = {};
             DAYS_OF_WEEK.forEach(({ key }) => {
                 standardHoursPayload[key] = {
@@ -174,26 +224,27 @@ export default function WorkingHoursScreen({ navigation }) {
                 };
             });
 
-            // 2. Prepare flat structure overtime payload profile
             const overtimePayload = {
                 isOvertimeEnabled,
                 start: isOvertimeEnabled ? convertTo24Hour(overtimeStart) : "",
                 end: isOvertimeEnabled ? convertTo24Hour(overtimeEnd) : "",
             };
 
-            // 3. Dispatch parallel API actions 
             await Promise.all([
                 updateWorkingHours(standardHoursPayload),
                 providerUpdateOvertime(overtimePayload)
             ]);
 
-            Alert.alert("Success", "Your availability and working hours have been saved.", [
-                { text: "OK", onPress: () => navigation.goBack() }
-            ]);
+            showCustomPopup(
+                "success",
+                "Schedule Updated",
+                "Your weekly availability and working hours have been saved successfully.",
+                () => navigation.goBack()
+            );
         } catch (error) {
             console.error("Save schedule parameters error:", error);
             const errorMsg = error.response?.data?.message || "Failed to update availability settings.";
-            Alert.alert("Error", errorMsg);
+            showCustomPopup("error", "Update Failed", errorMsg);
         } finally {
             setIsSaving(false);
         }
@@ -280,7 +331,7 @@ export default function WorkingHoursScreen({ navigation }) {
                                 </View>
                             ) : (
                                 <View style={styles.closedPlaceholder}>
-                                    <Text style={styles.closedText}>Shop Marked Closed / Offline</Text>
+                                    <Text style={styles.closedText}>Day Closed / Offline</Text>
                                 </View>
                             )}
                         </View>
@@ -389,6 +440,50 @@ export default function WorkingHoursScreen({ navigation }) {
                     </View>
                 </View>
             )}
+
+            {/* CUSTOM MODERN ALERTS POPUP COMPONENT MODULE */}
+            <Modal
+                transparent
+                visible={alertConfig.visible}
+                animationType="none"
+                onRequestClose={closeCustomPopup}
+            >
+                <View style={styles.popupOverlay}>
+                    <Animated.View 
+                        style={[
+                            styles.popupContainer, 
+                            { 
+                                opacity: opacityAnim,
+                                transform: [{ scale: scaleAnim }] 
+                            }
+                        ]}
+                    >
+                        <View style={[
+                            styles.popupIconWrapper, 
+                            { backgroundColor: alertConfig.type === "success" ? COLORS.primary + "15" : COLORS.danger + "15" }
+                        ]}>
+                            <Ionicons 
+                                name={alertConfig.type === "success" ? "checkmark-circle" : "alert-circle"} 
+                                size={44} 
+                                color={alertConfig.type === "success" ? COLORS.primary : COLORS.danger} 
+                            />
+                        </View>
+                        
+                        <Text style={styles.popupTitle}>{alertConfig.title}</Text>
+                        <Text style={styles.popupMessage}>{alertConfig.message}</Text>
+                        
+                        <TouchableOpacity 
+                            style={[
+                                styles.popupButton, 
+                                { backgroundColor: alertConfig.type === "success" ? COLORS.primary : COLORS.secondary }
+                            ]}
+                            onPress={closeCustomPopup}
+                        >
+                            <Text style={styles.popupButtonText}>Continue</Text>
+                        </TouchableOpacity>
+                    </Animated.View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -587,5 +682,61 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: "600",
         color: COLORS.text,
+    },
+    // CUSTOM ALERTS STYLING PROPERTIES 
+    popupOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(15, 23, 42, 0.7)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 32,
+    },
+    popupContainer: {
+        backgroundColor: COLORS.white,
+        borderRadius: 28,
+        padding: 24,
+        width: "100%",
+        maxWidth: 340,
+        alignItems: "center",
+        shadowColor: COLORS.secondary,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+        elevation: 10,
+    },
+    popupIconWrapper: {
+        width: 76,
+        height: 76,
+        borderRadius: 38,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    popupTitle: {
+        fontSize: 20,
+        fontWeight: "800",
+        color: COLORS.secondary,
+        textAlign: "center",
+        marginBottom: 10,
+    },
+    popupMessage: {
+        fontSize: 14,
+        color: COLORS.subtext,
+        textAlign: "center",
+        lineHeight: 20,
+        marginBottom: 24,
+        paddingHorizontal: 8,
+    },
+    popupButton: {
+        borderRadius: 16,
+        paddingVertical: 14,
+        width: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    popupButtonText: {
+        color: COLORS.white,
+        fontSize: 15,
+        fontWeight: "700",
     },
 });
