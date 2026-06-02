@@ -1,6 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { EXPO_PUBLIC_API_BASE_URL } from '@env'; // Requires react-native-dotenv
+// import { EXPO_PUBLIC_API_BASE_URL } from '@env'; 
+
+const EXPO_PUBLIC_API_BASE_URL = 'https://5995-122-173-24-203.ngrok-free.app';
 
 const API = axios.create({
     baseURL: EXPO_PUBLIC_API_BASE_URL,
@@ -30,9 +32,15 @@ API.interceptors.request.use(async (config) => {
 // --- AUTH & REGISTRATION ---
 export const registerUser = (data) => API.post('/user-auth/register', data);
 
+
 export const loginUser = async (credentials) => {
-    const response = await API.post('/user-auth/login', credentials);
-    return response;
+    try {
+        const response = await API.post('/user-auth/login', credentials);
+        return response;
+    } catch (error) {
+        console.error("User login error", error);
+        throw error;
+    }
 };
 
 
@@ -44,10 +52,6 @@ export const fetchServiceDetail = (id) => API.get(`/services/${id}`);
 // --- PROFILE ---
 export const getUserProfile = () => API.get('/user-detail/profile');
 export const updateUserProfile = (data) => API.patch('/user-detail/profile', data);
-
-
-export const getCompanyProfile = () => API.get('/companies/me');
-export const updateCompanyProfile = (data) => API.put('/companies/update-profile', data);
 
 //Provider Routes
 export const fetchAllProviders = () => API.get('/providers/all');
@@ -66,4 +70,4 @@ export const logout = async () => {
     await AsyncStorage.removeItem('companyToken');
 };
 
-export default API;
+export default API; 

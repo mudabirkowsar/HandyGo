@@ -132,7 +132,6 @@ export default function DocumentsScreen({ navigation }) {
 
       if (response.data.success) {
         setIsSubmitting(false);
-        // Navigate to ShowPopup on Success
         navigation.navigate("ShowPopup");
       }
     } catch (error) {
@@ -147,7 +146,7 @@ export default function DocumentsScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        
+
         <View style={styles.header}>
           <Text style={styles.title}>Identity Verification</Text>
           <Text style={styles.subtitle}>Submit documents for admin approval</Text>
@@ -155,7 +154,7 @@ export default function DocumentsScreen({ navigation }) {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Document Details</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Aadhaar Number</Text>
             <TextInput
@@ -183,27 +182,27 @@ export default function DocumentsScreen({ navigation }) {
           <Text style={[styles.sectionTitle, { marginTop: 15 }]}>Upload Photos</Text>
 
           <View style={styles.uploadGrid}>
-            <UploadTile 
-                title="Aadhaar Front" 
-                image={images.aadhaarFrontImage} 
-                onPress={() => openPicker('aadhaarFrontImage')} 
+            <UploadTile
+              title="Aadhaar Front"
+              image={images.aadhaarFrontImage}
+              onPress={() => openPicker('aadhaarFrontImage')}
             />
-            <UploadTile 
-                title="Aadhaar Back" 
-                image={images.aadhaarBackImage} 
-                onPress={() => openPicker('aadhaarBackImage')} 
+            <UploadTile
+              title="Aadhaar Back"
+              image={images.aadhaarBackImage}
+              onPress={() => openPicker('aadhaarBackImage')}
             />
           </View>
 
-          <UploadTile 
-            title="Selfie with ID Card" 
-            image={images.selfieImage} 
-            onPress={() => openPicker('selfieImage')} 
-            fullWidth 
+          <UploadTile
+            title="Selfie with ID Card"
+            image={images.selfieImage}
+            onPress={() => openPicker('selfieImage')}
+            fullWidth
           />
 
-          <TouchableOpacity 
-            style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]} 
+          <TouchableOpacity
+            style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
             onPress={handleFinalSubmit}
             disabled={isSubmitting}
           >

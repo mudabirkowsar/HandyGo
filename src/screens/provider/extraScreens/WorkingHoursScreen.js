@@ -14,6 +14,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+// API Services Imports
+import {
+    fetchWorkingHours,
+    updateWorkingHours,
+    providerUpdateOvertime
+} from "../../../../api/ProviderAPI";
+
 const COLORS = {
     primary: "#08B36A",
     secondary: "#0F172A",
@@ -36,7 +43,6 @@ const DAYS_OF_WEEK = [
     { key: "sunday", label: "Sunday" },
 ];
 
-// Helper to generate typical hour dropdown slots (e.g., "08:00 AM")
 const GENERATED_HOURS = Array.from({ length: 24 }).flatMap((_, i) => {
     const hour = i === 0 || i === 12 ? 12 : i % 12;
     const ampm = i < 12 ? "AM" : "PM";
@@ -44,11 +50,30 @@ const GENERATED_HOURS = Array.from({ length: 24 }).flatMap((_, i) => {
     return [`${formattedHour}:00 ${ampm}`, `${formattedHour}:30 ${ampm}`];
 });
 
+// Helper utilities to translate 12h AM/PM options to clean 24h backend format configurations
+const convertTo24Hour = (time12h) => {
+    if (!time12h) return "";
+    const [time, modifier] = time12h.split(" ");
+    let [hours, minutes] = time.split(":");
+    if (hours === "12") hours = "00";
+    if (modifier === "PM") hours = parseInt(hours, 10) + 12;
+    return `${String(hours).padStart(2, "0")}:${minutes}`;
+};
+
+const convertTo12Hour = (time24h) => {
+    if (!time24h) return "09:00 AM";
+    const [hours, minutes] = time24h.split(":");
+    const currentHour = parseInt(hours, 10);
+    const modifier = currentHour >= 12 ? "PM" : "AM";
+    let hours12 = currentHour % 12;
+    hours12 = hours12 === 0 ? 12 : hours12;
+    return `${String(hours12).padStart(2, "0")}:${minutes} ${modifier}`;
+};
+
 export default function WorkingHoursScreen({ navigation }) {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Schema structured tracking state
     const [workingHours, setWorkingHours] = useState({
         monday: { isAvailable: true, start: "09:00 AM", end: "06:00 PM" },
         tuesday: { isAvailable: true, start: "09:00 AM", end: "06:00 PM" },
@@ -59,24 +84,51 @@ export default function WorkingHoursScreen({ navigation }) {
         sunday: { isAvailable: false, start: "09:00 AM", end: "06:00 PM" },
     });
 
-    // State handles custom inline modal select configurations
+    // Overtime/Extra Configuration States
+    const [isOvertimeEnabled, setIsOvertimeEnabled] = useState(false);
+    const [overtimeStart, setOvertimeStart] = useState("06:00 PM");
+    const [overtimeEnd, setOvertimeEnd] = useState("09:00 PM");
+
     const [pickerConfig, setPickerConfig] = useState({
         visible: false,
-        dayKey: null,
+        dayKey: null, // 'overtime' or specific week day name keys
         timeType: null, // 'start' or 'end'
     });
 
     useEffect(() => {
-        fetchWorkingHours();
+        loadScheduleData();
     }, []);
 
-    const fetchWorkingHours = async () => {
+    const loadScheduleData = async () => {
         setIsLoading(true);
         try {
-            // API integration patch point example:
-            // const response = await api.getProviderProfile();
-            // if(response.data.workingHours) setWorkingHours(response.data.workingHours);
+            const response = await fetchWorkingHours();
+            if (response.data && response.data.success) {
+                const backendHours = response.data.workingHours;
+                const backendOvertime = response.data.overtime;
+
+                if (backendHours) {
+                    const mappedHours = {};
+                    DAYS_OF_WEEK.forEach(({ key }) => {
+                        if (backendHours[key]) {
+                            mappedHours[key] = {
+                                isAvailable: backendHours[key].isAvailable,
+                                start: convertTo12Hour(backendHours[key].start),
+                                end: convertTo12Hour(backendHours[key].end),
+                            };
+                        }
+                    });
+                    setWorkingHours((prev) => ({ ...prev, ...mappedHours }));
+                }
+
+                if (backendOvertime) {
+                    setIsOvertimeEnabled(backendOvertime.isOvertimeEnabled || false);
+                    if (backendOvertime.start) setOvertimeStart(convertTo12Hour(backendOvertime.start));
+                    if (backendOvertime.end) setOvertimeEnd(convertTo12Hour(backendOvertime.end));
+                }
+            }
         } catch (error) {
+            console.error("Fetch working hours failed:", error);
             Alert.alert("Error", "Failed to load working hours profile configuration.");
         } finally {
             setIsLoading(false);
@@ -86,46 +138,62 @@ export default function WorkingHoursScreen({ navigation }) {
     const handleToggleDay = (dayKey, value) => {
         setWorkingHours((prev) => ({
             ...prev,
-            [dayKey]: {
-                ...prev[dayKey],
-                isAvailable: value,
-            },
+            [dayKey]: { ...prev[dayKey], isAvailable: value },
         }));
     };
 
     const openTimePicker = (dayKey, timeType) => {
-        setPickerConfig({
-            visible: true,
-            dayKey,
-            timeType,
-        });
+        setPickerConfig({ visible: true, dayKey, timeType });
     };
 
     const selectTimeValue = (timeString) => {
         const { dayKey, timeType } = pickerConfig;
-        setWorkingHours((prev) => ({
-            ...prev,
-            [dayKey]: {
-                ...prev[dayKey],
-                [timeType]: timeString,
-            },
-        }));
+
+        if (dayKey === "overtime") {
+            if (timeType === "start") setOvertimeStart(timeString);
+            if (timeType === "end") setOvertimeEnd(timeString);
+        } else {
+            setWorkingHours((prev) => ({
+                ...prev,
+                [dayKey]: { ...prev[dayKey], [timeType]: timeString },
+            }));
+        }
         setPickerConfig({ visible: false, dayKey: null, timeType: null });
     };
 
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            console.log("SAVING WORKING HOURS SCHEMA CONFIG:", workingHours);
+            // 1. Prepare converted standard 24-hour payload structure
+            const standardHoursPayload = {};
+            DAYS_OF_WEEK.forEach(({ key }) => {
+                standardHoursPayload[key] = {
+                    isAvailable: workingHours[key].isAvailable,
+                    start: convertTo24Hour(workingHours[key].start),
+                    end: convertTo24Hour(workingHours[key].end),
+                };
+            });
 
-            // Simulated API request
-            await new Promise((resolve) => setTimeout(resolve, 1500));
+            // 2. Prepare flat structure overtime payload profile
+            const overtimePayload = {
+                isOvertimeEnabled,
+                start: isOvertimeEnabled ? convertTo24Hour(overtimeStart) : "",
+                end: isOvertimeEnabled ? convertTo24Hour(overtimeEnd) : "",
+            };
+
+            // 3. Dispatch parallel API actions 
+            await Promise.all([
+                updateWorkingHours(standardHoursPayload),
+                providerUpdateOvertime(overtimePayload)
+            ]);
 
             Alert.alert("Success", "Your availability and working hours have been saved.", [
                 { text: "OK", onPress: () => navigation.goBack() }
             ]);
         } catch (error) {
-            Alert.alert("Error", "Failed to update availability schedule settings.");
+            console.error("Save schedule parameters error:", error);
+            const errorMsg = error.response?.data?.message || "Failed to update availability settings.";
+            Alert.alert("Error", errorMsg);
         } finally {
             setIsSaving(false);
         }
@@ -157,7 +225,7 @@ export default function WorkingHoursScreen({ navigation }) {
                     Set your standard operational working windows below. Customers will only be able to book slot times when you are active.
                 </Text>
 
-                {/* DAYS CONTAINER CARDS */}
+                {/* WEEKDAYS OPERATIONAL CARDS */}
                 {DAYS_OF_WEEK.map(({ key, label }) => {
                     const dayConfig = workingHours[key];
                     return (
@@ -219,6 +287,62 @@ export default function WorkingHoursScreen({ navigation }) {
                     );
                 })}
 
+                {/* OVERTIME CONFIGURATION CARD */}
+                <View style={[styles.dayCard, !isOvertimeEnabled && styles.disabledCard, { borderColor: COLORS.primary + "40" }]}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.dayInfo}>
+                            <Ionicons
+                                name="flash"
+                                size={22}
+                                color={isOvertimeEnabled ? "#F59E0B" : COLORS.subtext}
+                            />
+                            <View>
+                                <Text style={[styles.dayLabel, !isOvertimeEnabled && styles.disabledText]}>
+                                    Overtime / Extra Hours
+                                </Text>
+                                <Text style={{ fontSize: 11, color: COLORS.subtext }}>Offer booking windows outside default shifts</Text>
+                            </View>
+                        </View>
+                        <Switch
+                            trackColor={{ false: COLORS.border, true: COLORS.primary + "40" }}
+                            thumbColor={isOvertimeEnabled ? COLORS.primary : "#CBD5E1"}
+                            ios_backgroundColor={COLORS.border}
+                            onValueChange={(val) => setIsOvertimeEnabled(val)}
+                            value={isOvertimeEnabled}
+                        />
+                    </View>
+
+                    {isOvertimeEnabled && (
+                        <View style={styles.timeSelectorsRow}>
+                            <TouchableOpacity
+                                style={styles.timePickerButton}
+                                onPress={() => openTimePicker("overtime", "start")}
+                            >
+                                <Text style={styles.timeLabel}>Extra Hours Start</Text>
+                                <View style={styles.timeValueContainer}>
+                                    <Ionicons name="time-outline" size={18} color={COLORS.primary} />
+                                    <Text style={styles.timeValueText}>{overtimeStart}</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <View style={styles.timeDivider}>
+                                <Text style={{ color: COLORS.subtext }}>to</Text>
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.timePickerButton}
+                                onPress={() => openTimePicker("overtime", "end")}
+                            >
+                                <Text style={styles.timeLabel}>Extra Hours End</Text>
+                                <View style={styles.timeValueContainer}>
+                                    <Ionicons name="time-outline" size={18} color={COLORS.danger} />
+                                    <Text style={styles.timeValueText}>{overtimeEnd}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+
                 {/* SAVE SUBMIT BUTTON */}
                 <TouchableOpacity
                     style={[styles.saveButton, isSaving && { opacity: 0.8 }]}
@@ -272,6 +396,7 @@ export default function WorkingHoursScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        paddingTop: 30,
         backgroundColor: COLORS.background,
     },
     centered: {
@@ -416,7 +541,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "700",
     },
-    // PICKER OVERLAY SHEET STYLING
     pickerModalOverlay: {
         position: "absolute",
         top: 0,

@@ -83,8 +83,8 @@ export default function RegisterScreen({ navigation }) {
 
         if (response.data.success) {
           // Store token
-          await AsyncStorage.setItem("userToken", response.data.token);
-          await AsyncStorage.setItem("userRole", "provider");
+          await AsyncStorage.setItem("providerToken", response.data.token);
+          await AsyncStorage.setItem("providerRole", "provider");
 
           setIsLoading(false);
           navigation.replace("DocumentsUpload")

@@ -67,6 +67,7 @@ export default function LoginScreen({ navigation }) {
 
         // 1. Save Token immediately if login is successful
         if (token) {
+          console.log("Provider logged in, token saved.", token);
           await AsyncStorage.setItem("providerToken", token);
         }
 
@@ -76,22 +77,22 @@ export default function LoginScreen({ navigation }) {
         if (status === "incomplete") {
           // Provider has not uploaded documents yet
           setIsLoading(false);
-          navigation.replace("DocumentsUpload"); 
-        } 
+          navigation.replace("DocumentsUpload");
+        }
         else if (status === "pending") {
           // Provider uploaded documents, waiting for Admin
           setIsLoading(false);
-          navigation.replace("ShowPopup"); 
-        } 
+          navigation.replace("ShowPopup");
+        }
         else if (status === "rejected") {
           // Admin rejected the account
           setIsLoading(false);
           Alert.alert(
-            "Account Rejected", 
+            "Account Rejected",
             "Your application has been rejected. Please check your email or contact support for details."
           );
           // Stay on Login (as requested)
-        } 
+        }
         else if (status === "approved") {
           // Full access granted
           setIsLoading(false);

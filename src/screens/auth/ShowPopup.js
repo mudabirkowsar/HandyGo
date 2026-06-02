@@ -26,7 +26,7 @@ const COLORS = {
 };
 
 const ShowPopup = ({ navigation }) => {
-  
+
   const handleLogoutAndBack = async () => {
     try {
       // 1. Remove the provider tokens and data
@@ -48,7 +48,7 @@ const ShowPopup = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      
+
       <View style={styles.content}>
         {/* Animated-like Icon Header */}
         <View style={styles.iconContainer}>
@@ -65,14 +65,14 @@ const ShowPopup = ({ navigation }) => {
         {/* Text Section */}
         <Text style={styles.title}>Under Verification</Text>
         <Text style={styles.description}>
-          Your documents have been successfully submitted! Our administrative team is 
+          Your documents have been successfully submitted! Our administrative team is
           currently reviewing your profile for safety and compliance.
         </Text>
 
         <View style={styles.infoBox}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary} />
           <Text style={styles.infoText}>
-            This process usually takes <Text style={{fontWeight: '700'}}>24 to 48 hours</Text>.
+            This process usually takes <Text style={{ fontWeight: '700' }}>24 to 48 hours</Text>.
           </Text>
         </View>
 
@@ -83,11 +83,11 @@ const ShowPopup = ({ navigation }) => {
 
       {/* Footer Button */}
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={handleLogoutAndBack}
         >
-          <Ionicons name="arrow-back" size={20} color={COLORS.white} style={{marginRight: 10}} />
+          <Ionicons name="arrow-back" size={20} color={COLORS.white} style={{ marginRight: 10 }} />
           <Text style={styles.backButtonText}>Back to Login</Text>
         </TouchableOpacity>
         <Text style={styles.footerNote}>Sign in later to check your status</Text>

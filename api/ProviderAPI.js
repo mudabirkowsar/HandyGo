@@ -1,6 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { EXPO_PUBLIC_API_BASE_URL } from '@env';
+// import { EXPO_PUBLIC_API_BASE_URL } from '@env';
+
+const EXPO_PUBLIC_API_BASE_URL = 'https://5995-122-173-24-203.ngrok-free.app';
+
 
 const ProviderAPI = axios.create({
     baseURL: EXPO_PUBLIC_API_BASE_URL,
@@ -29,8 +32,13 @@ ProviderAPI.interceptors.request.use(async (config) => {
 
 // Login as a Service Provider
 export const loginProvider = async (credentials) => {
-    const response = await ProviderAPI.post('/provider-auth/login', credentials);
-    return response;
+    try {
+        const response = await ProviderAPI.post('/provider-auth/login', credentials);
+        return response;
+    } catch (error) {
+        console.error("Provider login error", error);
+        throw error;
+    }
 };
 
 // Register as a Service Provider
@@ -43,6 +51,11 @@ export const getProviderProfile = () => ProviderAPI.get('/provider/profile');
 
 // Update Provider Availability
 export const updateAvailability = (status) => ProviderAPI.patch('/provider/availability', { status });
+
+//Working hours 
+export const fetchWorkingHours = () => ProviderAPI.get('/provider-hours/working-hours');
+export const updateWorkingHours = (workingHours) => ProviderAPI.put('/provider-hours/working-hours', { workingHours });
+export const providerUpdateOvertime = (overtimeData) => ProviderAPI.put('/provider-hours/overtime', { ...overtimeData });
 
 // Add/Update a Service
 export const addService = (serviceData) => ProviderAPI.post('/provider/services', serviceData);
