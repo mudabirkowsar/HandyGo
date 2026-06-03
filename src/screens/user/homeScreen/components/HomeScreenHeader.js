@@ -9,6 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const COLORS = {
   primary: "#08B36A",
@@ -44,6 +45,8 @@ const HomeScreenHeader = () => {
       // Get current coordinates
       const location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
+      await AsyncStorage.setItem('userLatitude', latitude.toString());
+      await AsyncStorage.setItem('userLongitude', longitude.toString());
 
       // Reverse geocoding using Expo
       const reverseGeocode = await Location.reverseGeocodeAsync({

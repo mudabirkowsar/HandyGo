@@ -1,16 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  StyleSheet,
   View,
   Text,
+  StyleSheet,
+  FlatList,
   Image,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
+  Modal,
+  SafeAreaView,
+  Dimensions,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { fetchAllProviders } from "../../../../../api/UserAPI";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
+
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 44) / 2; 
 
 const COLORS = {
   primary: "#08B36A",
@@ -21,228 +28,417 @@ const COLORS = {
   subtext: "#6B7280",
   border: "#E5E7EB",
   white: "#FFFFFF",
+  danger: "#EF4444",
 };
 
 const SomeServiceProviders = () => {
+  const [providers, setProviders] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const navigation = useNavigation();
 
-  // State definitions for loading and live provider array data strings
-  const [providers, setProviders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    type: "success", 
+    title: "",
+    message: "",
+  });
 
   useEffect(() => {
-    const getProvidersList = async () => {
+    const loadProviders = async () => {
       try {
-        const response = await fetchAllProviders();
-        if (response.data && response.data.success) {
-          setProviders(response.data.providers || []);
-        }
-      } catch (error) {
-        console.log("FETCH ALL PROVIDERS COMPONENT ERROR:", error?.response?.data || error.message);
-      } finally {
-        setIsLoading(false);
+        const lng = await AsyncStorage.getItem('userLongitude');
+        const lat = await AsyncStorage.getItem('userLatitude');
+        loadTopProviders(lng, lat, "");
+      } catch (err) {
+        loadTopProviders(null, null, "");
       }
     };
-
-    getProvidersList();
+    loadProviders();
   }, []);
 
-  // Limit display viewport layout processing to the first 6 records
-  const displayProviders = providers.slice(0, 6);
+  const showAlert = (type, title, message) => {
+    setAlertConfig({ type, title, message });
+    setAlertVisible(true);
+  };
 
-  if (isLoading) {
+  const loadTopProviders = async (lng, lat, serviceProvided = "") => {
+    setLoading(true);
+    try {
+      const queryParams = {};
+      if (lng) queryParams.lng = lng;
+      if (lat) queryParams.lat = lat;
+      if (serviceProvided) queryParams.serviceProvided = serviceProvided;
+
+      const response = await fetchAllProviders(queryParams);
+      if (response?.data?.success) {
+        const allData = response.data.data || [];
+        setProviders(allData.slice(0, 4));
+      }
+    } catch (error) {
+      showAlert(
+        "error",
+        "Error",
+        error?.response?.data?.message || "Failed to load nearby providers."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderHeader = () => (
+    <View style={styles.headerSection}>
+      <Text style={styles.sectionTitle}>Featured Providers</Text>
+      <Text style={styles.sectionSubtitle}>Top certified experts active near your area</Text>
+    </View>
+  );
+
+  if (loading) {
     return (
-      <View style={[styles.container, { paddingVertical: 40, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-        <Text style={[styles.subtitle, { marginTop: 8 }]}>Loading specialists...</Text>
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Top Specialists</Text>
-          <Text style={styles.subtitle}>Highly rated independent pros</Text>
-        </View>
-        <TouchableOpacity>
-          <Text style={styles.viewAll}>View All</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollList}
-      >
-        {displayProviders.map((item) => (
-          <TouchableOpacity 
-            key={item._id} 
-            style={styles.card} 
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate("SingleManDetail", { provider: item })}
+    <SafeAreaView style={styles.safeContainer}>
+      <FlatList
+        data={providers}
+        keyExtractor={(item) => item._id}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.listContainer}
+        numColumns={2}
+        columnWrapperStyle={styles.rowWrapper}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="account-search-outline" size={48} color={COLORS.subtext} />
+            <Text style={styles.emptyText}>No service providers found nearby.</Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.providerCard}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate("ProviderDetail", { providerId: item._id })}
           >
-            {/* Verified Badge conditionally rendered based on verification status key */}
-            {item.verificationStatus === "approved" && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color={COLORS.primary} />
-              </View>
-            )}
+            <View style={styles.imageContainer}>
+              {item.profileImage ? (
+                <Image source={{ uri: item.profileImage }} style={styles.profilePic} />
+              ) : (
+                <View style={[styles.profilePic, styles.fallbackAvatar]}>
+                  <Text style={styles.avatarText}>
+                    {item.fullName ? item.fullName.charAt(0).toUpperCase() : "P"}
+                  </Text>
+                </View>
+              )}
+              {item.isOnline && <View style={styles.onlineBadge} />}
 
-            <Image 
-              source={{ uri: item.profileImage || "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=150" }} 
-              style={styles.avatar} 
-            />
-            
-            <Text style={styles.name} numberOfLines={1}>{item.fullName}</Text>
-            
-            {/* Safely extracts name if object category relation populates */}
-            <Text style={styles.job} numberOfLines={1}>
-              {item.serviceCategory?.name || "General Specialist"}
-            </Text>
-
-            <View style={styles.statsRow}>
-              <View style={styles.stat}>
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <Text style={styles.statText}>{item.averageRating || 0}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.stat}>
-                <Text style={styles.statText}>{item.experienceYears || 0} yrs</Text>
+              <View style={styles.distanceBadge}>
+                <Ionicons name="location" size={10} color={COLORS.white} />
+                <Text style={styles.distanceText}>
+                  {item.distanceFromUserKm ? item.distanceFromUserKm.toFixed(1) : "0.0"} km
+                </Text>
               </View>
             </View>
 
-            {/* Display starting price if services array data elements exist */}
-            <Text style={styles.priceText}>
-              Starts at ₹{item.services?.[0]?.price || "299"}
-            </Text>
+            <View style={styles.infoBlock}>
+              <Text style={styles.providerName} numberOfLines={1}>
+                {item.fullName}
+              </Text>
+              <Text style={styles.categoryTag} numberOfLines={1}>
+                {item.serviceProvided}
+              </Text>
 
-            <View style={styles.bookBtn}>
-              <Text style={styles.bookBtnText}>View Profile</Text>
+              {item.bio ? (
+                <Text style={styles.bioText} numberOfLines={1}>
+                  {item.bio}
+                </Text>
+              ) : (
+                <Text style={styles.bioPlaceholder} numberOfLines={1}>
+                  No bio shared yet
+                </Text>
+              )}
+
+              <View style={styles.divider} />
+
+              <View style={styles.metricsRow}>
+                <View style={styles.ratingGroup}>
+                  <Ionicons name="star" size={13} color="#F59E0B" />
+                  <Text style={styles.ratingText}>
+                    {item.averageRating && item.averageRating > 0 ? item.averageRating.toFixed(1) : "New"}
+                  </Text>
+                  {item.totalReviews > 0 && (
+                    <Text style={styles.reviewsText}>({item.totalReviews})</Text>
+                  )}
+                </View>
+
+                <Text style={styles.priceText} numberOfLines={1}>
+                  ₹{item.perDayPrice}
+                  <Text style={styles.perDayLabel}>/d</Text>
+                </Text>
+              </View>
             </View>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
+        )}
+      />
+
+      <Modal visible={alertVisible} transparent animationType="fade">
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertBox}>
+            <View style={styles.alertIconContainer}>
+              {alertConfig.type === "success" ? (
+                <Ionicons name="checkmark-circle" size={54} color={COLORS.primary} />
+              ) : (
+                <Ionicons name="alert-circle" size={54} color={COLORS.danger} />
+              )}
+            </View>
+
+            <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            <Text style={styles.alertMessage}>{alertConfig.message}</Text>
+
+            <TouchableOpacity
+              style={styles.alertPrimaryButton}
+              onPress={() => setAlertVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.alertPrimaryButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
+export default SomeServiceProviders;
+
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 20,
-    paddingBottom: 0,
+  safeContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  header: {
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  listContainer: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  headerSection: {
+    marginBottom: 20,
+    marginTop: 4,
+    width: "100%",
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: COLORS.secondary,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: COLORS.subtext,
+    marginTop: 3,
+  },
+  rowWrapper: {
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  providerCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
+    width: CARD_WIDTH,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: "hidden",
+    shadowColor: COLORS.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  imageContainer: {
+    width: "100%",
+    height: 110,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  profilePic: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  fallbackAvatar: {
+    backgroundColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: COLORS.subtext,
+  },
+  onlineBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    zIndex: 2,
+  },
+  distanceBadge: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  distanceText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: COLORS.white,
+    marginLeft: 3,
+  },
+  infoBlock: {
+    padding: 12,
+  },
+  providerName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  categoryTag: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.primary,
+    marginTop: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  bioText: {
+    fontSize: 12,
+    color: COLORS.subtext,
+    marginTop: 4,
+    height: 16,
+  },
+  bioPlaceholder: {
+    fontSize: 12,
+    color: COLORS.border,
+    fontStyle: "italic",
+    marginTop: 4,
+    height: 16,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 10,
+  },
+  metricsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 15,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: COLORS.secondary,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: COLORS.subtext,
-  },
-  viewAll: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.primary,
-  },
-  scrollList: {
-    paddingLeft: 20,
-    paddingRight: 10,
-  },
-  card: {
-    width: 170,
-    backgroundColor: COLORS.white,
-    borderRadius: 24,
-    padding: 15,
-    marginBottom: 5,
-    marginRight: 15,
+  ratingGroup: {
+    flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
   },
-  verifiedBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 1,
-  },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginBottom: 12,
-    backgroundColor: COLORS.background,
-  },
-  name: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: COLORS.secondary,
-    marginBottom: 2,
-  },
-  job: {
+  ratingText: {
     fontSize: 12,
     fontWeight: "600",
-    color: COLORS.primary,
-    marginBottom: 10,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  stat: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.secondary,
+    color: COLORS.text,
     marginLeft: 3,
   },
-  divider: {
-    width: 1,
-    height: 10,
-    backgroundColor: COLORS.border,
-    marginHorizontal: 8,
+  reviewsText: {
+    fontSize: 11,
+    color: COLORS.subtext,
+    marginLeft: 2,
   },
   priceText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: COLORS.subtext,
-    marginBottom: 12,
-  },
-  bookBtn: {
-    width: "100%",
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    alignItems: "center",
-  },
-  bookBtnText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "700",
-    color: COLORS.primary,
+    color: COLORS.secondary,
+  },
+  perDayLabel: {
+    fontSize: 10,
+    fontWeight: "400",
+    color: COLORS.subtext,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 80,
+    width: width - 32,
+  },
+  emptyText: {
+    color: COLORS.subtext,
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
+  },
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  alertBox: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 320,
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: COLORS.secondary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  alertIconContainer: {
+    marginBottom: 14,
+  },
+  alertTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: COLORS.secondary,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  alertMessage: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  alertPrimaryButton: {
+    backgroundColor: COLORS.secondary,
+    width: "100%",
+    maxWidth: 140,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  alertPrimaryButtonText: {
+    color: COLORS.white,
+    fontWeight: "600",
+    fontSize: 15,
   },
 });
-
-export default SomeServiceProviders;

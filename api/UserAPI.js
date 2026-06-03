@@ -30,9 +30,6 @@ API.interceptors.request.use(async (config) => {
 // ==========================================
 
 // --- AUTH & REGISTRATION ---
-export const registerUser = (data) => API.post('/user-auth/register', data);
-
-
 export const loginUser = async (credentials) => {
     try {
         const response = await API.post('/user-auth/login', credentials);
@@ -42,25 +39,24 @@ export const loginUser = async (credentials) => {
         throw error;
     }
 };
-
-
-// --- CATEGORIES ---
-export const fetchCategories = () => API.get('/categories');
-export const fetchServices = () => API.get('/services');
-export const fetchServiceDetail = (id) => API.get(`/services/${id}`);
+export const registerUser = (data) => API.post('/user-auth/register', data);
 
 // --- PROFILE ---
 export const getUserProfile = () => API.get('/user-detail/profile');
 export const updateUserProfile = (data) => API.patch('/user-detail/profile', data);
 
+
+// --- CATEGORIES ---
+export const fetchCategories = () => API.get('/user-category/all');
+
+export const fetchServices = () => API.get('/services');
+export const fetchServiceDetail = (id) => API.get(`/services/${id}`);
+
+
 //Provider Routes
-export const fetchAllProviders = () => API.get('/providers/all');
-export const fetchProviderById = (id) => API.get(`/providers/${id}`);
-export const getProviderProfile = () => API.get('/providers/me');
-export const updateProviderProfile = (data) => API.put('/providers/update-profile', data);
-export const fetchProvidersWorkingHours = () => API.get(`/providers/working-hours`);
-export const updateProvidersWorkingHours = (data) => API.put(`/providers/working-hours`, data);
-export const updateWorkingStatus = (data) => API.patch(`/providers/working-hours/toggle-day`, data);
+export const fetchAllProviders = (params) => { return API.get('/user-providers/providers/nearby', { params }); };
+export const fetchProviderById = (id) => API.get(`/user-providers/providers/${id}`);
+
 
 
 
