@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useRef } from 'react';
 import {
   StyleSheet,
@@ -8,12 +9,11 @@ import {
   StatusBar,
   Dimensions,
   Easing,
-  Alert,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-// Your Color Theme
+// Premium Color System
 const COLORS = {
   primary: "#08B36A",
   secondary: "#0F172A",
@@ -22,9 +22,6 @@ const COLORS = {
   text: "#111827",
   subtext: "#6B7280",
   border: "#E5E7EB",
-  success: "#22C55E",
-  error: "#EF4444",
-  warning: "#F59E0B",
 };
 
 export default function SplashScreen({ navigation }) {
@@ -36,11 +33,10 @@ export default function SplashScreen({ navigation }) {
   const textTranslateY = useRef(new Animated.Value(30)).current;
   const loadingProgress = useRef(new Animated.Value(0)).current;
 
-  // Effect 1: Handle Visual Animations on Mount
   useEffect(() => {
-    // sequence of animations
+    // 1. Kick off visual animations sequence
     Animated.sequence([
-      // 1. Logo Pops in
+      // Logo Pops in
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1,
@@ -54,7 +50,7 @@ export default function SplashScreen({ navigation }) {
           useNativeDriver: true,
         }),
       ]),
-      // 2. Text Slides up
+      // Text Slides up
       Animated.parallel([
         Animated.timing(textOpacity, {
           toValue: 1,
@@ -70,22 +66,41 @@ export default function SplashScreen({ navigation }) {
       ]),
     ]).start();
 
-    // 3. Loading Bar Animation (Independent)
+    // 2. Loading Bar Track Progress Animation (3000ms total duration)
     Animated.timing(loadingProgress, {
       toValue: 1,
       duration: 3000,
       easing: Easing.linear,
-      useNativeDriver: false, // width cannot use native driver
+      useNativeDriver: false, // width adjustments cannot use native driver layer
     }).start();
+
+    // 3. Coordinate Initialization with Authenticated Device States
+    checkAuthenticationAndNavigate();
   }, []);
 
-  useEffect(() => {
-    // Simulate initialization tasks (e.g., checking auth, loading resources)
-    const timer = setTimeout(() => {
+  const checkAuthenticationAndNavigate = async () => {
+    try {
+      // Safely fetch string contents asynchronously from system sandboxes
+      const providerToken = await AsyncStorage.getItem('providerToken');
+      const userToken = await AsyncStorage.getItem('userToken');
+
+      // We explicitly hold navigation transitions until loading progress completes (3000ms)
+      setTimeout(() => {
+        if (providerToken) {
+          navigation.replace('ProviderHome');
+        } else if (userToken) {
+          navigation.replace('MainTabs');
+        } else {
+          navigation.replace('Login');
+        }
+      }, 3100); // 3100ms matches cleanly with the progress animation bar ending frame
+
+    } catch (error) {
+      console.error("Critical routing validation exception occurred:", error);
+      // Fallback routing behavior to ensure application state doesn't freeze
       navigation.replace('Login');
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    }
+  };
 
   // Interpolate loading width
   const loaderWidth = loadingProgress.interpolate({
@@ -95,7 +110,6 @@ export default function SplashScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Light background means dark text in status bar */}
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <View style={styles.mainContent}>
@@ -159,12 +173,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 25,
-    // Soft Shadow
+    // Soft Shadow Engine Layout Configurations
     shadowColor: COLORS.secondary,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 15,
-    elevation: 5,
+    elevation: 4,
   },
   logo: {
     width: 80,
@@ -184,11 +198,12 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.subtext,
-    marginTop: 5,
-    letterSpacing: 1,
+    marginTop: 6,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
+    fontWeight: '600',
   },
   footer: {
     position: 'absolute',
@@ -199,17 +214,19 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 12,
     color: COLORS.subtext,
-    marginBottom: 10,
+    marginBottom: 12,
+    fontWeight: '500',
   },
   loaderBackground: {
-    width: width * 0.6,
+    width: width * 0.55,
     height: 4,
     backgroundColor: COLORS.border,
-    borderRadius: 2,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   loaderFill: {
     height: '100%',
     backgroundColor: COLORS.primary,
+    borderRadius: 10,
   },
 });

@@ -129,12 +129,19 @@ const ProfileScreen = () => {
               icon="construct-outline"
               title="My Services"
               subtitle="Manage prices and timing"
+              onPress={() => navigation.navigate("MyServices")}
             />
             <MenuItem
               icon="time-outline"
               title="Work Availability"
               subtitle="Set your working hours"
               onPress={() => navigation.navigate("ManageWorkingHours")}
+            />
+            <MenuItem
+              icon="wallet-outline"
+              title="Manage Pricing"
+              subtitle="Set base rates and overtime rates"
+              onPress={() => navigation.navigate("ManagePricing")}
             />
             <MenuItem
               icon="wallet-outline"

@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { EXPO_PUBLIC_API_BASE_URL } from '@env';
 
-const EXPO_PUBLIC_API_BASE_URL = 'https://5995-122-173-24-203.ngrok-free.app';
+const EXPO_PUBLIC_API_BASE_URL = 'https://7f21-122-173-24-203.ngrok-free.app';
 
 
 const ProviderAPI = axios.create({
@@ -54,6 +54,14 @@ export const fetchWorkingHours = () => ProviderAPI.get('/provider-hours/working-
 export const updateWorkingHours = (workingHours) => ProviderAPI.put('/provider-hours/working-hours', { workingHours });
 export const providerUpdateOvertime = (overtimeData) => ProviderAPI.put('/provider-hours/overtime', { ...overtimeData });
 
+// services/providerService.js
+export const fetchProviderServices = () => ProviderAPI.get('/provider-services/services');
+export const addProviderService = (serviceData) => ProviderAPI.post('/provider-services/services', serviceData);
+export const updateProviderService = (serviceId, serviceData) => ProviderAPI.put(`/provider-services/services/${serviceId}`, serviceData);
+export const deleteProviderService = (serviceId) => ProviderAPI.delete(`/provider-services/services/${serviceId}`);
+
+// 5. NEW: Update global pricing structure (perDayPrice & overtimeHourlyPrice)
+export const updateGlobalBaseRates = (ratesData) => ProviderAPI.patch('/provider-services/prices/base-rates', ratesData);
 
 // Logout
 export const logoutProvider = async () => {

@@ -15,6 +15,8 @@ import WorkingHoursScreen from "../screens/provider/extraScreens/WorkingHoursScr
 import DocumentsScreen from "../screens/provider/documents/DocumentsScreen";
 import ShowPopup from "../screens/auth/ShowPopup";
 import ProviderProfileScreen from "../screens/provider/profileScreens/ProviderProfileScreen";
+import MyServices from "../screens/provider/profileScreens/MyServices";
+import ManagePricing from "../screens/provider/profileScreens/ManagePricing";
 
 const Stack = createNativeStackNavigator();
 
@@ -39,6 +41,8 @@ export default function AppNavigator() {
             <Stack.Screen name="ProviderProfile" component={ProviderProfileScreen} />
             <Stack.Screen name="UpdateAvailability" component={UpdateAvailabilityScreen} />
             <Stack.Screen name="ManageWorkingHours" component={WorkingHoursScreen} />
+            <Stack.Screen name="MyServices" component={MyServices} />
+            <Stack.Screen name="ManagePricing" component={ManagePricing} />
         </Stack.Navigator>
     );
 }
