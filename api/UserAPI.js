@@ -66,7 +66,7 @@ export const deleteUserAddress = (id) => API.delete(`/user-addresses/${id}`);
 //Booking Routes
 export const createBooking = (data) => API.post('/user-bookings/user-bookings', data);
 export const fetchUserBookings = () => API.get('/user-bookings/user-bookings');
-export const cancelBooking = (id) => API.post(`/user-bookings/${id}/cancel`);
+export const cancelBooking = (bookingId, reason) => API.put(`/user-bookings/cancel/${bookingId}`, { reason });
 
 
 
