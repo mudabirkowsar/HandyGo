@@ -196,13 +196,6 @@ const ProviderDetail = ({ route, navigation }) => {
                                         {service.description && (
                                             <Text style={styles.serviceSubDescription}>{service.description}</Text>
                                         )}
-                                        <View style={styles.timestampRowBadge}>
-                                            <Feather name="clock" size={12} color={COLORS.textMuted} />
-                                            <Text style={styles.timestampBadgeText}>{service.durationInMins || 60} mins session</Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.priceBadgeContainer}>
-                                        <Text style={styles.servicePriceTagText}>₹{service.price}</Text>
                                     </View>
                                 </View>
                             ))}

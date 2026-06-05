@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { EXPO_PUBLIC_API_BASE_URL } from '@env';
 
-const EXPO_PUBLIC_API_BASE_URL = 'https://7f21-122-173-24-203.ngrok-free.app';
+const EXPO_PUBLIC_API_BASE_URL = 'https://1b5e-2401-4900-1f33-9114-c9e8-30f-b90d-f76.ngrok-free.app';
 
 
 const ProviderAPI = axios.create({

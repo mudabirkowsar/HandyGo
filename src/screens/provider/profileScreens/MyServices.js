@@ -104,16 +104,14 @@ const MyServices = () => {
 
     // Form Submission handler
     const handleSubmitService = async () => {
-        if (!formName.trim() || !formPrice.trim()) {
-            showAlert("error", "Validation Error", "Name and Price are required.");
+        if (!formName.trim()) {
+            showAlert("error", "Validation Error", "Name is required.");
             return;
         }
 
         const payload = {
             name: formName.trim(),
-            price: Number(formPrice),
             description: formDescription.trim(),
-            durationInMins: formDuration.trim() ? Number(formDuration) : undefined,
         };
 
         try {
@@ -204,16 +202,6 @@ const MyServices = () => {
                                     {item.description}
                                 </Text>
                             ) : null}
-
-                            <View style={styles.metaRow}>
-                                <Text style={styles.servicePrice}>₹{item.price}</Text>
-                                {item.durationInMins ? (
-                                    <View style={styles.durationTag}>
-                                        <Ionicons name="time-outline" size={14} color={COLORS.subtext} style={styles.metaIcon} />
-                                        <Text style={styles.durationText}>{item.durationInMins} mins</Text>
-                                    </View>
-                                ) : null}
-                            </View>
                         </View>
                         <View style={styles.actionButtonsColumn}>
                             <TouchableOpacity
@@ -262,32 +250,6 @@ const MyServices = () => {
                                 value={formName}
                                 onChangeText={setFormName}
                             />
-
-                            <View style={styles.inlineInputsRow}>
-                                <View style={styles.halfInputGroup}>
-                                    <Text style={styles.label}>Price (₹)*</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="e.g. 1500"
-                                        placeholderTextColor={COLORS.subtext}
-                                        keyboardType="numeric"
-                                        value={formPrice}
-                                        onChangeText={setFormPrice}
-                                    />
-                                </View>
-
-                                <View style={styles.halfInputGroup}>
-                                    <Text style={styles.label}>Duration (mins)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="e.g. 90"
-                                        placeholderTextColor={COLORS.subtext}
-                                        keyboardType="numeric"
-                                        value={formDuration}
-                                        onChangeText={setFormDuration}
-                                    />
-                                </View>
-                            </View>
 
                             <Text style={styles.label}>Description / Details</Text>
                             <TextInput
