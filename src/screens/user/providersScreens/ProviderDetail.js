@@ -271,7 +271,7 @@ const ProviderDetail = ({ route, navigation }) => {
                 <View style={styles.pricingSummaryStack}>
                     <Text style={styles.pricingMetaCapLabel}>Day Base rate</Text>
                     <Text style={styles.pricingActualValueText}>
-                        ₹{provider.perDayPrice || 699}
+                        ₹{provider.perDayPrice || 599}
                         <Text style={styles.pricingValueSubtextUnit}>/day</Text>
                     </Text>
                 </View>
@@ -280,6 +280,7 @@ const ProviderDetail = ({ route, navigation }) => {
                     style={styles.primaryCallToActionButton}
                     activeOpacity={0.85}
                     onPress={() => {
+                        navigation.navigate("ProviderCheckoutScreen", { provider });
                         console.log("Booking flow initializing for ID:", provider._id);
                     }}
                 >

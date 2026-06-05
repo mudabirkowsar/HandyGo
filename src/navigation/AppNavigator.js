@@ -19,6 +19,7 @@ import MyServices from "../screens/provider/profileScreens/MyServices";
 import ManagePricing from "../screens/provider/profileScreens/ManagePricing";
 import ProviderDetail from "../screens/user/providersScreens/ProviderDetail";
 import SavedAddressesScreen from "../screens/user/profileScreens/SavedAddressesScreen";
+import ProviderCheckoutScreen from "../screens/user/checkout/ProviderCheckoutScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -34,6 +35,7 @@ export default function AppNavigator() {
             <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
             <Stack.Screen name="ProviderDetail" component={ProviderDetail} />
             <Stack.Screen name="SavedAddressesScreen" component={SavedAddressesScreen} />
+            <Stack.Screen name="ProviderCheckoutScreen" component={ProviderCheckoutScreen} />
 
             <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
 

@@ -63,6 +63,11 @@ export const addUserAddress = (data) => API.post('/user-addresses', data);
 export const updateUserAddress = (id, data) => API.put(`/user-addresses/${id}`, data);
 export const deleteUserAddress = (id) => API.delete(`/user-addresses/${id}`);
 
+//Booking Routes
+export const createBooking = (data) => API.post('/user-bookings/user-bookings', data);
+export const fetchUserBookings = () => API.get('/user-bookings/user-bookings');
+export const cancelBooking = (id) => API.post(`/user-bookings/${id}/cancel`);
+
 
 
 
