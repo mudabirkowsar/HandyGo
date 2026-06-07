@@ -56,7 +56,8 @@ export const fetchServiceDetail = (id) => API.get(`/services/${id}`);
 //Provider Routes
 export const fetchAllProviders = (params) => { return API.get('/user-providers/providers/nearby', { params }); };
 export const fetchProviderById = (id) => API.get(`/user-providers/providers/${id}`);
-
+export const fetchProviderReviews = (providerId) => API.get(`/user-providers/provider/reviews/${providerId}`);
+export const fetchProviderRatingStats = (providerId) => API.get(`/user-providers/provider/reviewstars/${providerId}`);
 //Address Routes
 export const fetchUserAddresses = () => API.get('/user-addresses/');
 export const addUserAddress = (data) => API.post('/user-addresses', data);
