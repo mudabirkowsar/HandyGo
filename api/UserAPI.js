@@ -47,7 +47,7 @@ export const updateUserProfile = (data) => API.patch('/user-detail/profile', dat
 
 //Payment api 
 export const initiateSplitPaymentAPI = (bookingId) => API.post(`/payment/pay-order/${bookingId}`);
-export const verifySplitPaymentAPI = (bookingId, verificationPayload) => API.post(`/payme/verify-payment/${bookingId}`, verificationPayload);
+export const verifySplitPaymentAPI = (bookingId, verificationPayload) => API.post(`/payment/verify-payment/${bookingId}`, verificationPayload);
 
 
 // --- CATEGORIES ---

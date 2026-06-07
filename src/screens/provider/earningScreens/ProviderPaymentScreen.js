@@ -15,10 +15,8 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-// Import your custom user endpoint registry layer
-import { initiateSplitPaymentAPI } from "../../../../api/UserAPI";
-
-// Import the Razorpay SDK library safely
+// Import your live user endpoints
+import { initiateSplitPaymentAPI, verifySplitPaymentAPI } from "../../../../api/UserAPI";
 import RazorpayCheckout from "react-native-razorpay";
 
 const { width } = Dimensions.get("window");
@@ -43,7 +41,7 @@ const ProviderPaymentScreen = ({ route, navigation }) => {
 
   // Custom Toast Notification States
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState("success"); // 'success' | 'error'
+  const [toastType, setToastType] = useState("success");
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const showToast = (message, type = "success") => {
@@ -71,55 +69,72 @@ const ProviderPaymentScreen = ({ route, navigation }) => {
     try {
       setProcessing(true);
       
-      // 1. Initialize split payment configurations from the backend controller
+      // 1. Initialize split payment configurations from backend order controller
       const response = await initiateSplitPaymentAPI(booking._id);
       
       if (response?.data?.success) {
         const { gatewayOrderId, amount, currency } = response.data;
         
-        // 2. Prepare precise validation parameters for the SDK
+        // 2. Configure operational options payload parameters
         const paymentOptions = {
-          description: `Payment for booking ref: ${booking._id}`,
-          order_id: gatewayOrderId, // The exact ID returned from your server
+          description: `Settle Booking Invoice ref: ${booking._id}`,
+          order_id: gatewayOrderId,
           currency: currency || "INR",
-          amount: amount, // CRITICAL: Use the exact paisa amount from backend. DO NOT multiply by 100 here!
-          key: "rzp_test_SymUeMhR07jLOt", // Replace with your actual rzp_test_ public key string directly
-          name: "Service Marketplace Platform",
+          amount: amount,
+          key: "rzp_test_SymUeMhR07jLOt", // Insert your real Razorpay key token here
+          name: "Service Marketplace Inc",
           prefill: {
-            email: "user@example.com",
+            email: "client@marketplace.com",
             contact: booking.address?.phone || "9999999999",
-            name: "Marketplace Client"
+            name: "Marketplace Client User"
           },
           theme: { color: COLORS.primary }
         };
 
-        console.log("[Razorpay SDK Launching] Options Payload Matrix:", paymentOptions);
-
-        // 3. Launch native module window securely
+        // 3. Open Native SDK Checkout Sheet Container Window Layer
         RazorpayCheckout.open(paymentOptions)
-          .then((data) => {
-            // Success Callback Route
-            showToast("Payment split completed! Transaction closed successfully.", "success");
-            setTimeout(() => {
+          .then(async (successPayload) => {
+            try {
+              // Extract payment parameters from successful gateway capture signature
+              const verificationPayload = {
+                razorpay_order_id: successPayload.razorpay_order_id,
+                razorpay_payment_id: successPayload.razorpay_payment_id,
+                razorpay_signature: successPayload.razorpay_signature
+              };
+
+              // 4. Send keys straight to server validation endpoint module to finalize status updates
+              const verifyResponse = await verifySplitPaymentAPI(booking._id, verificationPayload);
+
+              if (verifyResponse?.data?.success) {
+                showToast("Payment split finalized! Booking marked as completed.", "success");
+                setTimeout(() => {
+                  setProcessing(false);
+                  navigation.navigate("MainTabs");
+                }, 2000);
+              } else {
+                showToast("System discrepancy error finalizing database ledger.", "error");
+                setProcessing(false);
+              }
+            } catch (verifyError) {
+              console.error("Backend signature handshake failed:", verifyError);
+              showToast("Failed to verify checkout token signatures with server.", "error");
               setProcessing(false);
-              navigation.navigate("MainTabs");
-            }, 2000);
+            }
           })
           .catch((err) => {
-            // Error Callback Route (Triggers on failure or modal dismiss)
-            console.warn("Razorpay Native SDK Interaction Error:", err);
-            showToast(err.description || "Checkout session dismissed or incomplete.", "error");
+            console.log("Gateway execution dropped:", err);
+            showToast(err.description || "Checkout execution interface closed.", "error");
             setProcessing(false);
           });
 
       } else {
-        showToast(response?.data?.message || "Failed to establish payment configuration details.", "error");
+        showToast(response?.data?.message || "Failed to initialize payment instance framework.", "error");
         setProcessing(false);
       }
 
     } catch (error) {
-      console.error("Payment frontend initialization error stack:", error);
-      showToast(error.response?.data?.message || "Transaction handshake aborted. Try again.", "error");
+      console.error("Payment tracking controller error summary:", error);
+      showToast(error.response?.data?.message || "Handshake drops detected. Try again.", "error");
       setProcessing(false);
     }
   };
@@ -194,7 +209,7 @@ const ProviderPaymentScreen = ({ route, navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Sticky Bottom Footer Interaction Button */}
+      {/* Sticky Bottom Call-To-Action Footer Button */}
       <View style={styles.bottomStickyFooter}>
         <TouchableOpacity 
           style={styles.payButton} 
