@@ -218,6 +218,7 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
+    paddingVertical:20,
   },
   centerContainer: {
     flex: 1,

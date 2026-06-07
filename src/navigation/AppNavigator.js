@@ -20,6 +20,8 @@ import ManagePricing from "../screens/provider/profileScreens/ManagePricing";
 import ProviderDetail from "../screens/user/providersScreens/ProviderDetail";
 import SavedAddressesScreen from "../screens/user/profileScreens/SavedAddressesScreen";
 import ProviderCheckoutScreen from "../screens/user/checkout/ProviderCheckoutScreen";
+import AllReviews from "../screens/provider/profileScreens/AllReviews";
+import ProviderPaymentScreen from "../screens/provider/earningScreens/ProviderPaymentScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -37,6 +39,7 @@ export default function AppNavigator() {
             <Stack.Screen name="SavedAddressesScreen" component={SavedAddressesScreen} />
             <Stack.Screen name="ProviderCheckoutScreen" component={ProviderCheckoutScreen} />
 
+            <Stack.Screen name="ProviderPaymentScreen" component={ProviderPaymentScreen} />
             <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
 
             <Stack.Screen name="SingleManDetail" component={SingleManDetail} />
@@ -49,6 +52,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ManageWorkingHours" component={WorkingHoursScreen} />
             <Stack.Screen name="MyServices" component={MyServices} />
             <Stack.Screen name="ManagePricing" component={ManagePricing} />
+            <Stack.Screen name="AllReviews" component={AllReviews} />
         </Stack.Navigator>
     );
 }

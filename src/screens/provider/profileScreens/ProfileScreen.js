@@ -145,6 +145,12 @@ const ProfileScreen = () => {
             />
             <MenuItem
               icon="wallet-outline"
+              title="View Your Reviews"
+              subtitle="Your ratings and reviews"
+              onPress={() => navigation.navigate("AllReviews")}
+            />
+            <MenuItem
+              icon="wallet-outline"
               title="Payout Settings"
               subtitle="Bank account for earnings"
               isLast

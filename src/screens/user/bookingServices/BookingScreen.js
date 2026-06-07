@@ -45,22 +45,22 @@ const COLORS = {
 
 const TABS = ["Upcoming", "Accepted", "Ongoing", "Completed", "Cancelled"];
 
-const BookingScreen = () => {
+const BookingScreen = ({navigation}) => {
   const [activeTab, setActiveTab] = useState(0);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modals UI States
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
-  
+
   // Input Form Parameters
   const [ratingScore, setRatingScore] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [cancelReason, setCancelReason] = useState("");
-  
+
   // Submission Loaders
   const [submittingCancel, setSubmittingCancel] = useState(false);
   const [submittingComplete, setSubmittingComplete] = useState(false);
@@ -68,7 +68,7 @@ const BookingScreen = () => {
 
   // Custom Toast Notification States
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState("success"); 
+  const [toastType, setToastType] = useState("success");
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const flatListRef = useRef(null);
@@ -82,7 +82,7 @@ const BookingScreen = () => {
   const showToast = (message, type = "success") => {
     setToastMessage(message);
     setToastType(type);
-    
+
     Animated.timing(toastOpacity, {
       toValue: 1,
       duration: 400,
@@ -137,7 +137,7 @@ const BookingScreen = () => {
       setSubmittingCancel(true);
       const response = await cancelBooking(selectedBooking._id, cancelReason);
       if (response?.data?.success) {
-        setBookings(prev => 
+        setBookings(prev =>
           prev.map(b => b._id === selectedBooking._id ? { ...b, bookingStatus: "cancelled" } : b)
         );
         setCancelModalVisible(false);
@@ -155,24 +155,32 @@ const BookingScreen = () => {
 
   const submitCompletionAPI = async () => {
     if (!selectedBooking) return;
+
+    // Safety check: If it's a digital payment that hasn't been paid yet, route to Payment Screen
+    if (selectedBooking.payment?.method !== "COD" && selectedBooking.payment?.status !== "paid") {
+      setDetailModalVisible(false);
+      navigation.navigate("ProviderPaymentScreen", { booking: selectedBooking });
+      return;
+    }
+
     try {
       setSubmittingComplete(true);
       const response = await updateStatus(selectedBooking._id);
 
       if (response?.data?.success) {
         setBookings(prev =>
-          prev.map(b => b._id === selectedBooking._id ? { 
-            ...b, 
+          prev.map(b => b._id === selectedBooking._id ? {
+            ...b,
             bookingStatus: "completed",
             payment: { ...b.payment, status: b.payment.method === "COD" ? "paid" : b.payment.status }
           } : b)
         );
         setDetailModalVisible(false);
-        
+
         setTimeout(() => {
           initReviewWorkflow(selectedBooking);
         }, 600);
-        
+
       } else {
         showToast(response?.data?.message || "Failed to update lifecycle status.", "error");
       }
@@ -195,7 +203,7 @@ const BookingScreen = () => {
 
       if (response?.data?.success) {
         // Updated here to explicitly toggle the persistent Mongoose schema tracking variable directly
-        setBookings(prev => 
+        setBookings(prev =>
           prev.map(b => b._id === selectedBooking._id ? { ...b, isReviewed: true } : b)
         );
         setReviewModalVisible(false);
@@ -329,7 +337,7 @@ const BookingScreen = () => {
   };
 
   const isBookingCancelable = selectedBooking?.bookingStatus === "requested" ||
-                              selectedBooking?.bookingStatus === "accepted";
+    selectedBooking?.bookingStatus === "accepted";
 
   const isBookingOngoing = selectedBooking?.bookingStatus === "ongoing";
 
@@ -520,7 +528,7 @@ const BookingScreen = () => {
                     )}
                   </TouchableOpacity>
                 )}
-                
+
                 {/* Updated validation rules here to check against the core `isReviewed` schema token field */}
                 {selectedBooking.bookingStatus === "completed" && !selectedBooking.isReviewed && (
                   <TouchableOpacity style={styles.modalDetailsReviewBtn} activeOpacity={0.8} onPress={() => initReviewWorkflow(selectedBooking)}>
@@ -608,18 +616,18 @@ const BookingScreen = () => {
 
               <View style={styles.modalScrollBody}>
                 <Text style={[styles.inputLabel, { textAlign: 'center', marginBottom: 12 }]}>Tap Stars to Rate</Text>
-                
+
                 <View style={styles.ratingStarRow}>
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity 
-                      key={star} 
+                    <TouchableOpacity
+                      key={star}
                       activeOpacity={0.7}
                       onPress={() => setRatingScore(star)}
                     >
-                      <Ionicons 
-                        name={star <= ratingScore ? "star" : "star-outline"} 
-                        size={38} 
-                        color={star <= ratingScore ? COLORS.warning : COLORS.border} 
+                      <Ionicons
+                        name={star <= ratingScore ? "star" : "star-outline"}
+                        size={38}
+                        color={star <= ratingScore ? COLORS.warning : COLORS.border}
                         style={{ marginHorizontal: 4 }}
                       />
                     </TouchableOpacity>

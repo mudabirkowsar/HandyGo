@@ -48,6 +48,7 @@ export const getProviderProfile = () => ProviderAPI.get('/providers/me');
 export const updateProfile = (data) => ProviderAPI.put('/providers/update-profile', data);
 export const updateProviderLocation = (coordinates) => ProviderAPI.put('/providers/update-location', coordinates);
 export const updateProviderAvailability = (status) => ProviderAPI.put('/providers/update-availability', { availabilityStatus: status });
+export const fetchMyDashboardReviews = (page = 1, limit = 20) => ProviderAPI.get(`/providers/my-reviews?page=${page}&limit=${limit}`);
 
 //Working hours 
 export const fetchWorkingHours = () => ProviderAPI.get('/provider-hours/working-hours');

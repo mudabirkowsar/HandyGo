@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, SafeAreaView, StatusBar } from "react-native";
+import { View, StyleSheet, FlatList, SafeAreaView, StatusBar } from "react-native";
 import HomeScreenHeader from "./components/HomeScreenHeader";
 import HomeBanners from "./components/HomeBanners";
 import HomeServices from "./components/HomeServices";
@@ -8,6 +8,15 @@ import SomeServiceProviders from "./components/SomeServiceProviders";
 import DecorationComponent from "./components/DecorationComponent";
 
 export default function HomeScreen({navigation}) {
+    // Array holding your components exactly in the order you want them
+    const dashboardSections = [
+        { id: "1", component: <HomeBanners /> },
+        { id: "2", component: <HomeServices /> },
+        { id: "3", component: <SomeServicesList /> },
+        { id: "4", component: <SomeServiceProviders /> },
+        { id: "5", component: <DecorationComponent /> },
+    ];
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" />
@@ -15,16 +24,14 @@ export default function HomeScreen({navigation}) {
                 {/* The Header */}
                 <HomeScreenHeader />
 
-                <ScrollView
+                {/* Replaced ScrollView with FlatList to fix the VirtualizedList error */}
+                <FlatList
+                    data={dashboardSections}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => item.component}
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
-                >
-                    <HomeBanners />
-                    <HomeServices />
-                    <SomeServicesList />
-                    <SomeServiceProviders />
-                    <DecorationComponent />
-                </ScrollView>
+                    contentContainerStyle={styles.scrollContent} // Kept your original style reference
+                />
             </View>
         </SafeAreaView>
     );

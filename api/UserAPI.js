@@ -45,6 +45,10 @@ export const registerUser = (data) => API.post('/user-auth/register', data);
 export const getUserProfile = () => API.get('/user-detail/profile');
 export const updateUserProfile = (data) => API.patch('/user-detail/profile', data);
 
+//Payment api 
+export const initiateSplitPaymentAPI = (bookingId) => API.post(`/payment/pay-order/${bookingId}`);
+export const verifySplitPaymentAPI = (bookingId, verificationPayload) => API.post(`/payme/verify-payment/${bookingId}`, verificationPayload);
+
 
 // --- CATEGORIES ---
 export const fetchCategories = () => API.get('/user-category/all');
