@@ -68,6 +68,7 @@ export const createBooking = (data) => API.post('/user-bookings/user-bookings', 
 export const fetchUserBookings = () => API.get('/user-bookings/user-bookings');
 export const cancelBooking = (bookingId, reason) => API.put(`/user-bookings/cancel/${bookingId}`, { reason });
 export const updateStatus = (bookingId) => API.put(`/user-bookings/complete/${bookingId}`);
+export const submitBookingReview = (bookingId, reviewData) => API.post(`/user-bookings/review/${bookingId}/`, reviewData);
 
 
 

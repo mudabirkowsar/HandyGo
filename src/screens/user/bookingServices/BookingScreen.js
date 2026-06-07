@@ -21,7 +21,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 // Import your live API calls
-import { fetchUserBookings, cancelBooking, updateStatus } from '../../../../api/UserAPI';
+import { fetchUserBookings, cancelBooking, updateStatus, submitBookingReview } from '../../../../api/UserAPI';
 
 const { width, height } = Dimensions.get("window");
 
@@ -43,25 +43,32 @@ const COLORS = {
   infoLight: "rgba(59, 130, 246, 0.08)"
 };
 
-// Expanded to explicitly handle ongoing business states separate from initial schedules
 const TABS = ["Upcoming", "Accepted", "Ongoing", "Completed", "Cancelled"];
 
 const BookingScreen = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  
   // Modals UI States
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  
+  // Input Form Parameters
+  const [ratingScore, setRatingScore] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
   const [cancelReason, setCancelReason] = useState("");
+  
+  // Submission Loaders
   const [submittingCancel, setSubmittingCancel] = useState(false);
   const [submittingComplete, setSubmittingComplete] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Custom Toast Notification States
   const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState("success"); // 'success' | 'error'
+  const [toastType, setToastType] = useState("success"); 
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const flatListRef = useRef(null);
@@ -75,7 +82,7 @@ const BookingScreen = () => {
   const showToast = (message, type = "success") => {
     setToastMessage(message);
     setToastType(type);
-
+    
     Animated.timing(toastOpacity, {
       toValue: 1,
       duration: 400,
@@ -116,15 +123,21 @@ const BookingScreen = () => {
     setCancelModalVisible(true);
   };
 
+  const initReviewWorkflow = (booking) => {
+    setSelectedBooking(booking);
+    setDetailModalVisible(false);
+    setRatingScore(5);
+    setReviewComment("");
+    setReviewModalVisible(true);
+  };
+
   const submitCancellationAPI = async () => {
     if (!selectedBooking) return;
-
     try {
       setSubmittingCancel(true);
       const response = await cancelBooking(selectedBooking._id, cancelReason);
-
       if (response?.data?.success) {
-        setBookings(prev =>
+        setBookings(prev => 
           prev.map(b => b._id === selectedBooking._id ? { ...b, bookingStatus: "cancelled" } : b)
         );
         setCancelModalVisible(false);
@@ -133,7 +146,7 @@ const BookingScreen = () => {
         showToast(response?.data?.message || "Failed to terminate booking transaction.", "error");
       }
     } catch (err) {
-      console.error("Cancellation handling exception:", err);
+      console.error("Cancellation exception:", err);
       showToast(err.response?.data?.message || "Error processing terminal updates.", "error");
     } finally {
       setSubmittingCancel(false);
@@ -142,30 +155,59 @@ const BookingScreen = () => {
 
   const submitCompletionAPI = async () => {
     if (!selectedBooking) return;
-
     try {
       setSubmittingComplete(true);
       const response = await updateStatus(selectedBooking._id);
 
       if (response?.data?.success) {
-        // Local structural mutations reflect changes made to payment and status variables
         setBookings(prev =>
-          prev.map(b => b._id === selectedBooking._id ? {
-            ...b,
+          prev.map(b => b._id === selectedBooking._id ? { 
+            ...b, 
             bookingStatus: "completed",
             payment: { ...b.payment, status: b.payment.method === "COD" ? "paid" : b.payment.status }
           } : b)
         );
         setDetailModalVisible(false);
-        showToast("Thank you! Job marked as completed.", "success");
+        
+        setTimeout(() => {
+          initReviewWorkflow(selectedBooking);
+        }, 600);
+        
       } else {
         showToast(response?.data?.message || "Failed to update lifecycle status.", "error");
       }
     } catch (err) {
-      console.error("Completion endpoint error exception:", err);
+      console.error("Completion error exception:", err);
       showToast(err.response?.data?.message || "Error processing task conclusion updates.", "error");
     } finally {
       setSubmittingComplete(false);
+    }
+  };
+
+  const submitReviewFormAPI = async () => {
+    if (!selectedBooking) return;
+    try {
+      setSubmittingReview(true);
+      const response = await submitBookingReview(selectedBooking._id, {
+        rating: ratingScore,
+        comment: reviewComment
+      });
+
+      if (response?.data?.success) {
+        // Updated here to explicitly toggle the persistent Mongoose schema tracking variable directly
+        setBookings(prev => 
+          prev.map(b => b._id === selectedBooking._id ? { ...b, isReviewed: true } : b)
+        );
+        setReviewModalVisible(false);
+        showToast("Thank you for your valuable feedback!", "success");
+      } else {
+        showToast(response?.data?.message || "Could not save your review feedback.", "error");
+      }
+    } catch (err) {
+      console.error("Review creation exception:", err);
+      showToast(err.response?.data?.message || "Failed to connect to review engine.", "error");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -193,7 +235,6 @@ const BookingScreen = () => {
   const renderBookingCard = (item) => {
     const providerImage = item.provider?.profileImage || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200";
 
-    // Dynamic color coding styles depending on active layout tracking parameters
     const getStatusStyles = (status) => {
       if (status === "cancelled" || status === "rejected") return { badge: styles.badgeError, text: styles.textError };
       if (status === "completed") return { badge: styles.badgeSuccess, text: styles.textSuccess };
@@ -256,21 +297,11 @@ const BookingScreen = () => {
 
   const renderListPage = (tabName) => {
     const filteredData = bookings.filter((b) => {
-      if (tabName === "Upcoming") {
-        return b.bookingStatus === "requested";
-      }
-      if (tabName === "Accepted") {
-        return b.bookingStatus === "accepted";
-      }
-      if (tabName === "Ongoing") {
-        return b.bookingStatus === "ongoing";
-      }
-      if (tabName === "Completed") {
-        return b.bookingStatus === "completed";
-      }
-      if (tabName === "Cancelled") {
-        return b.bookingStatus === "cancelled" || b.bookingStatus === "rejected";
-      }
+      if (tabName === "Upcoming") return b.bookingStatus === "requested";
+      if (tabName === "Accepted") return b.bookingStatus === "accepted";
+      if (tabName === "Ongoing") return b.bookingStatus === "ongoing";
+      if (tabName === "Completed") return b.bookingStatus === "completed";
+      if (tabName === "Cancelled") return b.bookingStatus === "cancelled" || b.bookingStatus === "rejected";
       return false;
     });
 
@@ -298,8 +329,7 @@ const BookingScreen = () => {
   };
 
   const isBookingCancelable = selectedBooking?.bookingStatus === "requested" ||
-    selectedBooking?.bookingStatus === "accepted" ||
-    selectedBooking?.bookingStatus === "confirmed";
+                              selectedBooking?.bookingStatus === "accepted";
 
   const isBookingOngoing = selectedBooking?.bookingStatus === "ongoing";
 
@@ -471,26 +501,15 @@ const BookingScreen = () => {
                   ) : null}
                 </View>
 
-                {/* Relocated Cancellation Trigger Area inside details modal view */}
                 {isBookingCancelable && (
-                  <TouchableOpacity
-                    style={styles.modalDetailsCancelBtn}
-                    activeOpacity={0.8}
-                    onPress={initCancelWorkflow}
-                  >
+                  <TouchableOpacity style={styles.modalDetailsCancelBtn} activeOpacity={0.8} onPress={initCancelWorkflow}>
                     <Ionicons name="close-circle" size={16} color={COLORS.error} style={{ marginRight: 6 }} />
                     <Text style={styles.modalDetailsCancelBtnText}>Cancel Booking Request</Text>
                   </TouchableOpacity>
                 )}
 
-                {/* Primary Complete Job Trigger button for Ongoing state configurations */}
                 {isBookingOngoing && (
-                  <TouchableOpacity
-                    style={styles.modalDetailsCompleteBtn}
-                    activeOpacity={0.8}
-                    onPress={submitCompletionAPI}
-                    disabled={submittingComplete}
-                  >
+                  <TouchableOpacity style={styles.modalDetailsCompleteBtn} activeOpacity={0.8} onPress={submitCompletionAPI} disabled={submittingComplete}>
                     {submittingComplete ? (
                       <ActivityIndicator size="small" color={COLORS.white} />
                     ) : (
@@ -499,6 +518,14 @@ const BookingScreen = () => {
                         <Text style={styles.modalDetailsCompleteBtnText}>Confirm Job Completion</Text>
                       </>
                     )}
+                  </TouchableOpacity>
+                )}
+                
+                {/* Updated validation rules here to check against the core `isReviewed` schema token field */}
+                {selectedBooking.bookingStatus === "completed" && !selectedBooking.isReviewed && (
+                  <TouchableOpacity style={styles.modalDetailsReviewBtn} activeOpacity={0.8} onPress={() => initReviewWorkflow(selectedBooking)}>
+                    <Ionicons name="star" size={16} color={COLORS.white} style={{ marginRight: 6 }} />
+                    <Text style={styles.modalDetailsReviewBtnText}>Rate Service Experience</Text>
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -541,23 +568,86 @@ const BookingScreen = () => {
                 />
 
                 <View style={[styles.modalFlexRow, { marginTop: 12, gap: 12 }]}>
-                  <TouchableOpacity
-                    style={styles.cancelModalCloseBtn}
-                    onPress={() => setCancelModalVisible(false)}
-                    disabled={submittingCancel}
-                  >
+                  <TouchableOpacity style={styles.cancelModalCloseBtn} onPress={() => setCancelModalVisible(false)} disabled={submittingCancel}>
                     <Text style={styles.cancelModalCloseBtnText}>Keep Booking</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.cancelModalSubmitBtn}
-                    onPress={submitCancellationAPI}
-                    disabled={submittingCancel}
-                  >
+                  <TouchableOpacity style={styles.cancelModalSubmitBtn} onPress={submitCancellationAPI} disabled={submittingCancel}>
                     {submittingCancel ? (
                       <ActivityIndicator size="small" color={COLORS.white} />
                     ) : (
                       <Text style={styles.cancelModalSubmitBtnText}>Confirm Cancel</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Premium Five-Star Provider Rating Modal Engine */}
+      {selectedBooking && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={reviewModalVisible}
+          onRequestClose={() => setReviewModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxHeight: height * 0.65 }]}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={[styles.modalTitleText, { color: COLORS.primary }]}>Rate Performance</Text>
+                  <Text style={styles.modalSubId}>Share your experience with {selectedBooking.provider?.fullName}</Text>
+                </View>
+                <TouchableOpacity style={styles.modalCloseCircle} onPress={() => setReviewModalVisible(false)}>
+                  <Ionicons name="close" size={20} color={COLORS.secondary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalScrollBody}>
+                <Text style={[styles.inputLabel, { textAlign: 'center', marginBottom: 12 }]}>Tap Stars to Rate</Text>
+                
+                <View style={styles.ratingStarRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity 
+                      key={star} 
+                      activeOpacity={0.7}
+                      onPress={() => setRatingScore(star)}
+                    >
+                      <Ionicons 
+                        name={star <= ratingScore ? "star" : "star-outline"} 
+                        size={38} 
+                        color={star <= ratingScore ? COLORS.warning : COLORS.border} 
+                        style={{ marginHorizontal: 4 }}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={[styles.inputLabel, { marginTop: 16 }]}>Write a Review (Optional)</Text>
+                <TextInput
+                  style={styles.reasonInput}
+                  placeholder="Tell us what you liked or what could be improved..."
+                  placeholderTextColor={COLORS.subtext}
+                  multiline
+                  numberOfLines={4}
+                  value={reviewComment}
+                  onChangeText={setReviewComment}
+                  maxLength={500}
+                />
+
+                <View style={[styles.modalFlexRow, { marginTop: 20, gap: 12 }]}>
+                  <TouchableOpacity style={styles.cancelModalCloseBtn} onPress={() => setReviewModalVisible(false)} disabled={submittingReview}>
+                    <Text style={styles.cancelModalCloseBtnText}>Skip</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={[styles.cancelModalSubmitBtn, { backgroundColor: COLORS.primary }]} onPress={submitReviewFormAPI} disabled={submittingReview}>
+                    {submittingReview ? (
+                      <ActivityIndicator size="small" color={COLORS.white} />
+                    ) : (
+                      <Text style={styles.cancelModalSubmitBtnText}>Submit Feedback</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -795,37 +885,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.secondary,
   },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 100,
-    paddingHorizontal: 20,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  emptyText: {
-    color: COLORS.secondary,
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    color: COLORS.subtext,
-    fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 18,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
@@ -1027,6 +1086,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.white,
   },
+  modalDetailsReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.warning,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 30,
+  },
+  modalDetailsReviewBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.white,
+  },
   inputLabel: {
     fontSize: 12,
     fontWeight: '800',
@@ -1070,6 +1144,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.white,
+  },
+  ratingStarRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 10,
   }
 });
 
