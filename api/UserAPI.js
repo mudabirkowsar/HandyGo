@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { EXPO_PUBLIC_API_BASE_URL } from '@env'; 
 
-const EXPO_PUBLIC_API_BASE_URL = 'https://1b5e-2401-4900-1f33-9114-c9e8-30f-b90d-f76.ngrok-free.app';
+const EXPO_PUBLIC_API_BASE_URL = 'https://8996-2401-4900-1f33-9114-c9e8-30f-b90d-f76.ngrok-free.app';
 
 const API = axios.create({
     baseURL: EXPO_PUBLIC_API_BASE_URL,
@@ -67,6 +67,7 @@ export const deleteUserAddress = (id) => API.delete(`/user-addresses/${id}`);
 export const createBooking = (data) => API.post('/user-bookings/user-bookings', data);
 export const fetchUserBookings = () => API.get('/user-bookings/user-bookings');
 export const cancelBooking = (bookingId, reason) => API.put(`/user-bookings/cancel/${bookingId}`, { reason });
+export const updateStatus = (bookingId) => API.put(`/user-bookings/complete/${bookingId}`);
 
 
 

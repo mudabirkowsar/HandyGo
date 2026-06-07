@@ -1,5 +1,5 @@
 // screens/BookingScreen.js
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -12,16 +12,16 @@ import {
   Dimensions,
   Animated,
   ActivityIndicator,
-  Alert,
   Platform,
   Modal,
   ScrollView,
   TextInput
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 
 // Import your live API calls
-import { fetchUserBookings, cancelBooking } from '../../../../api/UserAPI';
+import { fetchUserBookings, cancelBooking, updateStatus } from '../../../../api/UserAPI';
 
 const { width, height } = Dimensions.get("window");
 
@@ -43,19 +43,21 @@ const COLORS = {
   infoLight: "rgba(59, 130, 246, 0.08)"
 };
 
-const TABS = ["Upcoming", "Completed", "Cancelled"];
+// Expanded to explicitly handle ongoing business states separate from initial schedules
+const TABS = ["Upcoming", "Accepted", "Ongoing", "Completed", "Cancelled"];
 
 const BookingScreen = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modals UI States
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [submittingComplete, setSubmittingComplete] = useState(false);
 
   // Custom Toast Notification States
   const [toastMessage, setToastMessage] = useState("");
@@ -64,21 +66,21 @@ const BookingScreen = () => {
 
   const flatListRef = useRef(null);
 
-  useEffect(() => {
-    loadBookings();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+    }, [])
+  );
 
   const showToast = (message, type = "success") => {
     setToastMessage(message);
     setToastType(type);
-    
-    // Fade In
+
     Animated.timing(toastOpacity, {
       toValue: 1,
       duration: 400,
       useNativeDriver: true,
     }).start(() => {
-      // Hold then Fade Out automatically
       setTimeout(() => {
         Animated.timing(toastOpacity, {
           toValue: 0,
@@ -108,22 +110,21 @@ const BookingScreen = () => {
     }
   };
 
-  const initCancelWorkflow = (booking) => {
-    setSelectedBooking(booking);
+  const initCancelWorkflow = () => {
+    setDetailModalVisible(false);
     setCancelReason("");
     setCancelModalVisible(true);
   };
 
   const submitCancellationAPI = async () => {
     if (!selectedBooking) return;
-    
+
     try {
       setSubmittingCancel(true);
       const response = await cancelBooking(selectedBooking._id, cancelReason);
-      
+
       if (response?.data?.success) {
-        // Optimistically map mutations locally to match database schema changes
-        setBookings(prev => 
+        setBookings(prev =>
           prev.map(b => b._id === selectedBooking._id ? { ...b, bookingStatus: "cancelled" } : b)
         );
         setCancelModalVisible(false);
@@ -136,6 +137,35 @@ const BookingScreen = () => {
       showToast(err.response?.data?.message || "Error processing terminal updates.", "error");
     } finally {
       setSubmittingCancel(false);
+    }
+  };
+
+  const submitCompletionAPI = async () => {
+    if (!selectedBooking) return;
+
+    try {
+      setSubmittingComplete(true);
+      const response = await updateStatus(selectedBooking._id);
+
+      if (response?.data?.success) {
+        // Local structural mutations reflect changes made to payment and status variables
+        setBookings(prev =>
+          prev.map(b => b._id === selectedBooking._id ? {
+            ...b,
+            bookingStatus: "completed",
+            payment: { ...b.payment, status: b.payment.method === "COD" ? "paid" : b.payment.status }
+          } : b)
+        );
+        setDetailModalVisible(false);
+        showToast("Thank you! Job marked as completed.", "success");
+      } else {
+        showToast(response?.data?.message || "Failed to update lifecycle status.", "error");
+      }
+    } catch (err) {
+      console.error("Completion endpoint error exception:", err);
+      showToast(err.response?.data?.message || "Error processing task conclusion updates.", "error");
+    } finally {
+      setSubmittingComplete(false);
     }
   };
 
@@ -161,20 +191,34 @@ const BookingScreen = () => {
   };
 
   const renderBookingCard = (item) => {
-    const isUpcomingTab = item.bookingStatus === "requested" || item.bookingStatus === "accepted" || item.bookingStatus === "confirmed";
     const providerImage = item.provider?.profileImage || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200";
 
+    // Dynamic color coding styles depending on active layout tracking parameters
+    const getStatusStyles = (status) => {
+      if (status === "cancelled" || status === "rejected") return { badge: styles.badgeError, text: styles.textError };
+      if (status === "completed") return { badge: styles.badgeSuccess, text: styles.textSuccess };
+      if (status === "ongoing") return { badge: styles.badgeInfo, text: styles.textInfo };
+      return { badge: styles.badgeWarning, text: styles.textWarning };
+    };
+
+    const statusStyle = getStatusStyles(item.bookingStatus);
+
     return (
-      <View key={item._id} style={styles.card}>
+      <TouchableOpacity
+        key={item._id}
+        style={styles.card}
+        activeOpacity={0.85}
+        onPress={() => openDetailsModal(item)}
+      >
         <View style={styles.cardTop}>
           <Image source={{ uri: providerImage }} style={styles.serviceImg} />
           <View style={styles.cardHeaderInfo}>
             <Text style={styles.serviceName}>{item.provider?.serviceProvided || "Professional Service"}</Text>
             <Text style={styles.providerName}>{item.provider?.fullName || "Assigned Provider"}</Text>
-            
+
             <View style={styles.badgeWrapperRow}>
-              <View style={[styles.statusIndicatorBadge, item.bookingStatus === "cancelled" ? styles.badgeError : styles.badgeSuccess]}>
-                <Text style={[styles.statusIndicatorBadgeText, item.bookingStatus === "cancelled" ? styles.textError : styles.textSuccess]}>
+              <View style={[styles.statusIndicatorBadge, statusStyle.badge]}>
+                <Text style={[styles.statusIndicatorBadgeText, statusStyle.text]}>
                   {item.bookingStatus}
                 </Text>
               </View>
@@ -204,41 +248,28 @@ const BookingScreen = () => {
               <Text style={styles.metaText}>{item.schedule?.startTime || "10:00 AM"}</Text>
             </View>
           </View>
-          
-          <View style={styles.actionArea}>
-            {isUpcomingTab && (
-              <TouchableOpacity 
-                style={styles.cancelBtn} 
-                onPress={() => initCancelWorkflow(item)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close-circle-outline" size={14} color={COLORS.error} style={{ marginRight: 4 }} />
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity 
-              style={styles.detailsBtn} 
-              activeOpacity={0.7}
-              onPress={() => openDetailsModal(item)}
-            >
-              <Text style={styles.detailsBtnText}>Details</Text>
-            </TouchableOpacity>
-          </View>
+          <Ionicons name="chevron-forward" size={16} color={COLORS.subtext} />
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   const renderListPage = (tabName) => {
     const filteredData = bookings.filter((b) => {
       if (tabName === "Upcoming") {
-        return b.bookingStatus === "requested" || b.bookingStatus === "accepted" || b.bookingStatus === "confirmed";
+        return b.bookingStatus === "requested";
+      }
+      if (tabName === "Accepted") {
+        return b.bookingStatus === "accepted";
+      }
+      if (tabName === "Ongoing") {
+        return b.bookingStatus === "ongoing";
       }
       if (tabName === "Completed") {
         return b.bookingStatus === "completed";
       }
       if (tabName === "Cancelled") {
-        return b.bookingStatus === "cancelled";
+        return b.bookingStatus === "cancelled" || b.bookingStatus === "rejected";
       }
       return false;
     });
@@ -259,23 +290,29 @@ const BookingScreen = () => {
               <Ionicons name="calendar-clear-outline" size={44} color={COLORS.subtext} />
             </View>
             <Text style={styles.emptyText}>No {tabName.toLowerCase()} bookings found</Text>
-            <Text style={styles.emptySubtext}>Your transactional layout cards matching this history channel will show here.</Text>
+            <Text style={styles.emptySubtext}>Your transactional layout cards matching this matrix sector will show here.</Text>
           </View>
         )}
       </View>
     );
   };
 
+  const isBookingCancelable = selectedBooking?.bookingStatus === "requested" ||
+    selectedBooking?.bookingStatus === "accepted" ||
+    selectedBooking?.bookingStatus === "confirmed";
+
+  const isBookingOngoing = selectedBooking?.bookingStatus === "ongoing";
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      
+
       {/* Dynamic Fading Toast Overlay Engine */}
       <Animated.View style={[styles.toastContainer, { opacity: toastOpacity }, toastType === "error" ? styles.toastError : styles.toastSuccess]}>
-        <Ionicons 
-          name={toastType === "error" ? "alert-circle" : "checkmark-circle"} 
-          size={18} 
-          color={toastType === "error" ? COLORS.error : COLORS.primary} 
+        <Ionicons
+          name={toastType === "error" ? "alert-circle" : "checkmark-circle"}
+          size={18}
+          color={toastType === "error" ? COLORS.error : COLORS.primary}
         />
         <Text style={[styles.toastText, toastType === "error" ? styles.toastTextError : styles.toastTextSuccess]}>
           {toastMessage}
@@ -284,7 +321,7 @@ const BookingScreen = () => {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>My <Text style={{color: COLORS.primary}}>Bookings</Text></Text>
+        <Text style={styles.title}>My <Text style={{ color: COLORS.primary }}>Bookings</Text></Text>
         <TouchableOpacity style={styles.historyBtn} onPress={loadBookings} activeOpacity={0.7}>
           <Ionicons name="refresh-outline" size={20} color={COLORS.secondary} />
         </TouchableOpacity>
@@ -295,8 +332,8 @@ const BookingScreen = () => {
         {TABS.map((tab, index) => {
           const isActive = activeTab === index;
           return (
-            <TouchableOpacity 
-              key={tab} 
+            <TouchableOpacity
+              key={tab}
               onPress={() => onTabPress(index)}
               style={styles.tabItem}
               activeOpacity={0.8}
@@ -354,9 +391,9 @@ const BookingScreen = () => {
                 {/* Section 1: Provider Information */}
                 <View style={styles.modalSectionCard}>
                   <View style={styles.modalFlexRow}>
-                    <Image 
-                      source={{ uri: selectedBooking.provider?.profileImage || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200" }} 
-                      style={styles.modalProviderImg} 
+                    <Image
+                      source={{ uri: selectedBooking.provider?.profileImage || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200" }}
+                      style={styles.modalProviderImg}
                     />
                     <View style={{ marginLeft: 14, flex: 1 }}>
                       <Text style={styles.modalProviderName}>{selectedBooking.provider?.fullName}</Text>
@@ -379,7 +416,7 @@ const BookingScreen = () => {
                     {selectedBooking.address?.city}, {selectedBooking.address?.state} - {selectedBooking.address?.postalCode}
                   </Text>
                   <Text style={styles.addressSubLine}>{selectedBooking.address?.country}</Text>
-                  
+
                   {selectedBooking.address?.deliveryInstructions ? (
                     <View style={styles.instructionBox}>
                       <Ionicons name="information-circle" size={16} color={COLORS.warning} />
@@ -424,7 +461,7 @@ const BookingScreen = () => {
                     </View>
                     <View style={[styles.metaInfoBadge, { marginLeft: 10 }]}>
                       <Text style={styles.metaBadgeLabel}>Payment Status</Text>
-                      <Text style={[styles.metaBadgeVal, { color: COLORS.warning }]}>
+                      <Text style={[styles.metaBadgeVal, selectedBooking.payment?.status === "paid" ? { color: COLORS.primary } : { color: COLORS.warning }]}>
                         {selectedBooking.payment?.status?.toUpperCase()}
                       </Text>
                     </View>
@@ -433,6 +470,37 @@ const BookingScreen = () => {
                     <Text style={styles.transactionText}>Txn ID: {selectedBooking.payment.transactionId}</Text>
                   ) : null}
                 </View>
+
+                {/* Relocated Cancellation Trigger Area inside details modal view */}
+                {isBookingCancelable && (
+                  <TouchableOpacity
+                    style={styles.modalDetailsCancelBtn}
+                    activeOpacity={0.8}
+                    onPress={initCancelWorkflow}
+                  >
+                    <Ionicons name="close-circle" size={16} color={COLORS.error} style={{ marginRight: 6 }} />
+                    <Text style={styles.modalDetailsCancelBtnText}>Cancel Booking Request</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Primary Complete Job Trigger button for Ongoing state configurations */}
+                {isBookingOngoing && (
+                  <TouchableOpacity
+                    style={styles.modalDetailsCompleteBtn}
+                    activeOpacity={0.8}
+                    onPress={submitCompletionAPI}
+                    disabled={submittingComplete}
+                  >
+                    {submittingComplete ? (
+                      <ActivityIndicator size="small" color={COLORS.white} />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-done-circle" size={18} color={COLORS.white} style={{ marginRight: 6 }} />
+                        <Text style={styles.modalDetailsCompleteBtnText}>Confirm Job Completion</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             </View>
           </View>
@@ -473,16 +541,16 @@ const BookingScreen = () => {
                 />
 
                 <View style={[styles.modalFlexRow, { marginTop: 12, gap: 12 }]}>
-                  <TouchableOpacity 
-                    style={styles.cancelModalCloseBtn} 
+                  <TouchableOpacity
+                    style={styles.cancelModalCloseBtn}
                     onPress={() => setCancelModalVisible(false)}
                     disabled={submittingCancel}
                   >
                     <Text style={styles.cancelModalCloseBtnText}>Keep Booking</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={styles.cancelModalSubmitBtn} 
+                  <TouchableOpacity
+                    style={styles.cancelModalSubmitBtn}
                     onPress={submitCancellationAPI}
                     disabled={submittingCancel}
                   >
@@ -540,12 +608,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
   },
-  toastTextSuccess: {
-    color: COLORS.primary,
-  },
-  toastTextError: {
-    color: COLORS.error,
-  },
+  toastTextSuccess: { color: COLORS.primary },
+  toastTextError: { color: COLORS.error },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -581,7 +645,7 @@ const styles = StyleSheet.create({
   },
   tabItem: {
     paddingVertical: 14,
-    marginRight: 28,
+    marginRight: 24,
     alignItems: 'center',
     position: 'relative',
   },
@@ -665,23 +729,19 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
-  badgeSuccess: {
-    backgroundColor: COLORS.primaryLight,
-  },
-  badgeError: {
-    backgroundColor: COLORS.errorLight,
-  },
+  badgeSuccess: { backgroundColor: COLORS.primaryLight },
+  badgeError: { backgroundColor: COLORS.errorLight },
+  badgeWarning: { backgroundColor: COLORS.warningLight },
+  badgeInfo: { backgroundColor: COLORS.infoLight },
   statusIndicatorBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  textSuccess: {
-    color: COLORS.primary,
-  },
-  textError: {
-    color: COLORS.error,
-  },
+  textSuccess: { color: COLORS.primary },
+  textError: { color: COLORS.error },
+  textWarning: { color: COLORS.warning },
+  textInfo: { color: COLORS.info },
   overtimeBadge: {
     backgroundColor: "rgba(15, 23, 42, 0.05)",
     paddingHorizontal: 8,
@@ -694,7 +754,7 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
   },
   durationBadge: {
-    backgroundColor: COLORS.infoLight,
+    backgroundColor: "rgba(15, 23, 42, 0.04)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -702,7 +762,7 @@ const styles = StyleSheet.create({
   durationBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.info,
+    color: COLORS.secondary,
   },
   priceText: {
     fontSize: 17,
@@ -733,39 +793,6 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.secondary,
-  },
-  actionArea: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cancelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: COLORS.errorLight,
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.15)",
-  },
-  cancelBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.error,
-  },
-  detailsBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  detailsBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
     color: COLORS.secondary,
   },
   emptyContainer: {
@@ -967,6 +994,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontWeight: '500',
+  },
+  modalDetailsCancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.errorLight,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.2)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 30,
+  },
+  modalDetailsCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.error,
+  },
+  modalDetailsCompleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 30,
+  },
+  modalDetailsCompleteBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.white,
   },
   inputLabel: {
     fontSize: 12,

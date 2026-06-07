@@ -43,22 +43,22 @@ const COLORS = {
 
 const ProviderCheckoutScreen = ({ route, navigation }) => {
   // Extracting provider nested core payload from route properties safely
-  const providerProfile = route?.params?.data || {};
+  const providerProfile = route?.params?.provider || {};
 
   // Core Provider Destructuring based on your dynamic schema fields
-  const providerId = providerProfile._id || "6a19d5b273b656a62ceb1cd0";
-  const providerName = providerProfile.fullName || "Mudabir Kowsar";
-  const serviceCategory = providerProfile.serviceProvided || "Painter";
-  const dailyRate = providerProfile.perDayPrice || 699;
-  const hourlyOvertimeRate = providerProfile.overtimeHourlyPrice || 99;
-  const availableServicesList = providerProfile.services || [];
+  const providerId = providerProfile._id;
+  const providerName = providerProfile.fullName;
+  const serviceCategory = providerProfile.serviceProvided;
+  const dailyRate = providerProfile.perDayPrice;
+  const hourlyOvertimeRate = providerProfile.overtimeHourlyPrice;
+  const availableServicesList = providerProfile.services;
 
   // State Management Engine
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
-  
+
   // Scope sub-service selector tracker
   const [selectedSubService, setSelectedSubService] = useState(availableServicesList[0] || null);
 
@@ -73,7 +73,7 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
   // Remaining parameters matching structural variables
   const [durationDays, setDurationDays] = useState("1");
   const [overtimeHours, setOvertimeHours] = useState("0");
-  const [paymentMethod, setPaymentMethod] = useState('COD'); 
+  const [paymentMethod, setPaymentMethod] = useState('COD');
   const [customNotes, setCustomNotes] = useState('');
 
   // UI Interactive Toggle State for Overtime Component Layer
@@ -82,7 +82,7 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
   // Custom Auto-hiding Toast Engine States
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState('success'); 
+  const [toastType, setToastType] = useState('success');
   const [toastOpacity] = useState(new Animated.Value(0));
 
   // Local Pricing Predictor Engine
@@ -90,7 +90,7 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
   const calculatedBasePrice = dailyRate * calculatedBaseDays;
   const calculatedOvertimeHours = isOvertimeEnabled ? (Number(overtimeHours) || 0) : 0;
   const calculatedOvertimeTotal = calculatedOvertimeHours * hourlyOvertimeRate;
-  const platformFee = 50; 
+  const platformFee = 50;
   const grandTotal = calculatedBasePrice + calculatedOvertimeTotal + platformFee;
 
   useEffect(() => {
@@ -124,14 +124,14 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
     try {
       setAddressesLoading(true);
       const response = await fetchUserAddresses();
-      
+
       let fetchedList = [];
       if (response.data && response.data.success) {
         fetchedList = response.data.data;
       } else {
         fetchedList = response.data || [];
       }
-      
+
       setAddresses(fetchedList);
 
       if (fetchedList.length > 0) {
@@ -239,16 +239,16 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
       {/* DYNAMIC AUTO-FADING TOAST POPUP NOTIFICATION ENGINE */}
       {toastVisible && (
         <Animated.View style={[styles.toastPopupContainer, styles[`toastType_${toastType}`], { opacity: toastOpacity }]}>
-          <Ionicons 
-            name={toastType === 'success' ? 'checkmark-circle' : toastType === 'error' ? 'alert-circle' : 'warning'} 
-            size={20} 
-            color={toastType === 'success' ? COLORS.primary : toastType === 'error' ? COLORS.error : COLORS.warning} 
+          <Ionicons
+            name={toastType === 'success' ? 'checkmark-circle' : toastType === 'error' ? 'alert-circle' : 'warning'}
+            size={20}
+            color={toastType === 'success' ? COLORS.primary : toastType === 'error' ? COLORS.error : COLORS.warning}
             style={{ marginRight: 10 }}
           />
           <Text style={styles.toastPopupText}>{toastMessage}</Text>
         </Animated.View>
       )}
-      
+
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Review Checkout</Text>
@@ -260,7 +260,7 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContainer}>
-        
+
         {/* SECTION 1: SELECTED SERVICE PROVIDER PROFILE OVERVIEW */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Assigned Service Professional</Text>
@@ -284,46 +284,14 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
             <View style={styles.rateBadge}>
               <Ionicons name="time-outline" size={14} color={COLORS.primary} style={{ marginRight: 4 }} />
               <Text style={styles.rateBadgeText}>Overtime/Hr: ₹{hourlyOvertimeRate}</Text>
-            </View>
+            </View> 
           </View>
         </View>
-
-        {/* SECTION 2: SPECIFIC TASK SCOPE SELECTOR */}
-        {availableServicesList.length > 0 && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Select Task Scope</Text>
-            <View style={styles.subServicesContainer}>
-              {availableServicesList.map((srv) => {
-                const isSelected = selectedSubService?._id === srv._id;
-                return (
-                  <TouchableOpacity 
-                    key={srv._id} 
-                    style={[styles.srvOption, isSelected && styles.srvOptionActive]}
-                    onPress={() => setSelectedSubService(srv)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.srvHeaderRow}>
-                      <Text style={[styles.srvName, isSelected && styles.srvNameActive]}>{srv.name}</Text>
-                      <View style={[styles.customRadioContainer, isSelected && styles.customRadioContainerActive]}>
-                        {isSelected && <View style={styles.customRadioInnerCircle} />}
-                      </View>
-                    </View>
-                    <Text style={styles.srvDesc} numberOfLines={2}>{srv.description}</Text>
-                    <View style={styles.srvMetaTagRow}>
-                      <Ionicons name="hourglass-outline" size={13} color={COLORS.secondary} style={{ marginRight: 4 }} />
-                      <Text style={styles.srvDuration}>{srv.durationInMins} mins duration target</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
 
         {/* SECTION 3: SYSTEM LOCATIONS TRACKER */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Deployment Target Location</Text>
-          
+
           {addressesLoading ? (
             <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 10 }} />
           ) : addresses.length === 0 ? (
@@ -336,17 +304,17 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
               {addresses.map((item) => {
                 const isCurrent = selectedAddress?._id === item._id;
                 return (
-                  <TouchableOpacity 
-                    key={item._id} 
+                  <TouchableOpacity
+                    key={item._id}
                     style={[styles.miniAddressTab, isCurrent && styles.miniAddressTabActive]}
                     onPress={() => setSelectedAddress(item)}
                     activeOpacity={0.8}
                   >
                     <View style={styles.miniTagHeaderRow}>
-                      <Ionicons 
-                        name={item.addressType === 'Home' ? 'home-outline' : item.addressType === 'Work' ? 'business-outline' : 'location-outline'} 
-                        size={13} 
-                        color={isCurrent ? COLORS.primary : COLORS.subtext} 
+                      <Ionicons
+                        name={item.addressType === 'Home' ? 'home-outline' : item.addressType === 'Work' ? 'business-outline' : 'location-outline'}
+                        size={13}
+                        color={isCurrent ? COLORS.primary : COLORS.subtext}
                       />
                       <Text style={[styles.miniTagText, isCurrent && styles.miniTagTextActive]}>{item.addressType}</Text>
                     </View>
@@ -375,7 +343,7 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
         {/* SECTION 4: TIME PARAMETERS AND DURATION CONTROL INPUTS */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Schedule Engine Settings</Text>
-          
+
           {/* NATIVE CALENDAR PICKER TRIGGER PANEL */}
           <Text style={styles.fieldLabel}>Execution Date</Text>
           <TouchableOpacity style={styles.pickerInteractiveContainer} onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
@@ -449,12 +417,12 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
               <Text style={[styles.fieldLabel, { marginTop: 2, color: COLORS.primary }]}>Overtime Target Limit (Hours)</Text>
               <View style={[styles.inputIconDecorationWrapper, { borderColor: COLORS.primary }]}>
                 <Ionicons name="stopwatch-outline" size={18} color={COLORS.primary} style={styles.inputOrnamentIcon} />
-                <TextInput 
-                  style={[styles.inputWithIconStyle, { fontWeight: '700', color: COLORS.primary }]} 
-                  value={overtimeHours} 
-                  onChangeText={setOvertimeHours} 
-                  keyboardType="numeric" 
-                  placeholder="0" 
+                <TextInput
+                  style={[styles.inputWithIconStyle, { fontWeight: '700', color: COLORS.primary }]}
+                  value={overtimeHours}
+                  onChangeText={setOvertimeHours}
+                  keyboardType="numeric"
+                  placeholder="0"
                   placeholderTextColor={COLORS.primary}
                 />
               </View>
@@ -469,16 +437,16 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
             {["COD", "Razorpay", "Wallet", "Card"].map((method) => {
               const isSelected = paymentMethod === method;
               return (
-                <TouchableOpacity 
-                  key={method} 
-                  style={[styles.payOptionButton, isSelected && styles.payOptionButtonActive]} 
+                <TouchableOpacity
+                  key={method}
+                  style={[styles.payOptionButton, isSelected && styles.payOptionButtonActive]}
                   onPress={() => setPaymentMethod(method)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons 
-                    name={getPaymentIcon(method)} 
-                    size={18} 
-                    color={isSelected ? COLORS.primary : COLORS.subtext} 
+                  <Ionicons
+                    name={getPaymentIcon(method)}
+                    size={18}
+                    color={isSelected ? COLORS.primary : COLORS.subtext}
                     style={{ marginBottom: 4 }}
                   />
                   <Text style={[styles.payOptionText, isSelected && styles.payOptionTextActive]}>{method}</Text>
@@ -492,10 +460,10 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Custom Order Notes</Text>
           <View style={styles.customTextAreaWrapperStyle}>
-            <TextInput 
-              style={styles.textArea} 
-              value={customNotes} 
-              onChangeText={setCustomNotes} 
+            <TextInput
+              style={styles.textArea}
+              value={customNotes}
+              onChangeText={setCustomNotes}
               placeholder="Type any additional instructions left for the deployment provider here..."
               placeholderTextColor="#94A3B8"
               multiline={true}
@@ -508,7 +476,7 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
         {/* SECTION 7: BILL DETAILS TRANSACTION MATRIX SUMMARY */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Strict Pricing Matrix Summary</Text>
-          
+
           <View style={styles.priceBillRow}>
             <Text style={styles.billLabel}>Base Rate Charge (₹{dailyRate} × {calculatedBaseDays} days)</Text>
             <Text style={styles.billValue}>₹{calculatedBasePrice}</Text>
@@ -538,8 +506,8 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
           <Text style={styles.footerMetaLabel}>Grand Payable Total:</Text>
           <Text style={styles.footerMetaPriceValue}>₹{grandTotal}</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.checkoutSubmitCTA} 
+        <TouchableOpacity
+          style={styles.checkoutSubmitCTA}
           onPress={handlePlaceBooking}
           disabled={checkoutSubmitting}
           activeOpacity={0.8}
@@ -559,7 +527,7 @@ const ProviderCheckoutScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, paddingTop:20, },
+  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 20, },
   header: { paddingHorizontal: 20, paddingVertical: 18, backgroundColor: COLORS.background, borderBottomWidth: 1, borderBottomColor: COLORS.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 22, fontWeight: '700', color: COLORS.secondary, letterSpacing: -0.5 },
   headerSubtitle: { fontSize: 13, color: COLORS.subtext, marginTop: 2 },
@@ -601,7 +569,7 @@ const styles = StyleSheet.create({
   addressInlineSeparatorLine: { flexDirection: 'row', alignItems: 'center', marginTop: 6, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 6 },
   finalAddrLabelSecondary: { flex: 1, fontSize: 12, color: COLORS.subtext, fontWeight: '600' },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.secondary, marginTop: 12, marginBottom: 6 },
-  
+
   // Custom Form Pickers Dynamic Wrapper Elements
   pickerInteractiveContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 4 },
   pickerInlineContent: { flexDirection: 'row', alignItems: 'center' },

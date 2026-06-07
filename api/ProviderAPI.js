@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { EXPO_PUBLIC_API_BASE_URL } from '@env';
 
-const EXPO_PUBLIC_API_BASE_URL = 'https://1b5e-2401-4900-1f33-9114-c9e8-30f-b90d-f76.ngrok-free.app';
+const EXPO_PUBLIC_API_BASE_URL = 'https://8996-2401-4900-1f33-9114-c9e8-30f-b90d-f76.ngrok-free.app';
 
 
 const ProviderAPI = axios.create({
@@ -62,6 +62,11 @@ export const deleteProviderService = (serviceId) => ProviderAPI.delete(`/provide
 
 // 5. NEW: Update global pricing structure (perDayPrice & overtimeHourlyPrice)
 export const updateGlobalBaseRates = (ratesData) => ProviderAPI.patch('/provider-services/prices/base-rates', ratesData);
+
+//Booking routes
+export const fetchBookings = () => ProviderAPI.get('/provider-bookings/provider-bookings');
+export const acceptOrRejectBooking = (bookingId, data) => ProviderAPI.put(`/provider-bookings/provider-bookings/${bookingId}/respond`, data);
+export const updateBookingStatus = (bookingId, data) => ProviderAPI.put(`/provider-bookings/provider-bookings/${bookingId}/status`, data);
 
 // Logout
 export const logoutProvider = async () => {
