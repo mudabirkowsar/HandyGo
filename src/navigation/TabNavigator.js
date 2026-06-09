@@ -8,6 +8,7 @@ import HomeScreen from "../screens/user/homeScreen/HomeScreen";
 import ServicesScreen from "../screens/user/serviceScreens/ServicesScreen";
 import BookingScreen from "../screens/user/bookingServices/BookingScreen";
 import ProfileScreen from "../screens/user/profileScreens/ProfileScreen";
+import ProductsScreen from "../screens/user/products/ProductsScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -35,6 +36,8 @@ export default function TabNavigator() {
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Services') {
+            iconName = focused ? 'grid' : 'grid-outline';
+          } else if (route.name === 'Products') {
             iconName = focused ? 'grid' : 'grid-outline';
           } else if (route.name === 'Bookings') {
             iconName = focused ? 'calendar' : 'calendar-outline';
@@ -66,6 +69,11 @@ export default function TabNavigator() {
         name="Services" 
         component={ServicesScreen} 
         options={{ title: 'Explore' }}
+      />
+      <Tab.Screen 
+        name="Products" 
+        component={ProductsScreen} 
+        options={{ title: 'Products' }}
       />
       <Tab.Screen 
         name="Bookings" 
