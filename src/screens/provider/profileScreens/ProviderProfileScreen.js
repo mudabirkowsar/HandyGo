@@ -14,9 +14,12 @@ import {
   Animated,
   Modal,
   Switch,
+  Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 
 // API Services Imports
 import { getProviderProfile, updateProfile } from "../../../../api/ProviderAPI";
@@ -44,13 +47,14 @@ export default function ProviderProfileScreen() {
   // =====================================================
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
-  const [gender, setGender] = useState("male"); 
-  const [dateOfBirth, setDateOfBirth] = useState(""); 
+  const [gender, setGender] = useState("male");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [serviceProvided, setServiceProvided] = useState("");
   const [experienceYears, setExperienceYears] = useState("");
-  const [skills, setSkills] = useState(""); 
-  const [languages, setLanguages] = useState(""); 
+  const [skills, setSkills] = useState("");
+  const [languages, setLanguages] = useState("");
   const [profileImage, setProfileImage] = useState("");
+  const [selectedImageUri, setSelectedImageUri] = useState(null); // Local picker URI tracker
 
   // Nested Address Object Fields
   const [houseNumber, setHouseNumber] = useState("");
@@ -119,15 +123,15 @@ export default function ProviderProfileScreen() {
       const response = await getProviderProfile();
       if (response.data && response.data.success) {
         const p = response.data.provider;
-        
+
         setFullName(p.fullName || "");
         setBio(p.bio || "");
         setGender(p.gender || "male");
-        if (p.dateOfBirth) setDateOfBirth(p.dateOfBirth.split("T")[0]); 
+        if (p.dateOfBirth) setDateOfBirth(p.dateOfBirth.split("T")[0]);
         setServiceProvided(p.serviceProvided || "");
         setExperienceYears(p.experienceYears ? String(p.experienceYears) : "");
         setProfileImage(p.profileImage || "");
-        
+
         if (p.skills) setSkills(p.skills.join(", "));
         if (p.languages) setLanguages(p.languages.join(", "));
 
@@ -161,57 +165,132 @@ export default function ProviderProfileScreen() {
     }
   };
 
+  // =====================================================
+  // MEDIA DEVICE ATTACHMENT CONTROLLERS
+  // =====================================================
+  const handleSelectImageSource = () => {
+    Alert.alert(
+      "Profile Picture",
+      "Select avatar image reference source location:",
+      [
+        { text: "Open Camera", onPress: openCameraPicker },
+        { text: "Choose from Gallery", onPress: openGalleryPicker },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  };
+
+  const openGalleryPicker = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      showCustomPopup("error", "Permission Denied", "App requires photo gallery tracking rights to select custom file vectors.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setSelectedImageUri(result.assets[0].uri);
+    }
+  };
+
+  const openCameraPicker = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      showCustomPopup("error", "Permission Denied", "App requires active terminal camera permissions to register visual identity matrices.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setSelectedImageUri(result.assets[0].uri);
+    }
+  };
+
+  // =====================================================
+  // API PROFILE SYNC SUBMITTER (HANDLES FORM DATA MUTATIONS)
+  // =====================================================
+  // Inside ProviderProfileScreen.js -> handleUpdate function
+
   const handleUpdate = async () => {
     if (!fullName.trim() || !serviceProvided.trim()) {
-      showCustomPopup("error", "Validation Error", "Full Name and Service Category fields are mandatory.");
+      showCustomPopup("error", "Validation Error", "Full Name and Service Category are mandatory.");
       return;
     }
 
     setIsSaving(true);
     try {
-      const profilePayload = {
-        fullName: fullName.trim(),
-        bio: bio.trim(),
-        gender,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        serviceProvided: serviceProvided.trim(),
-        experienceYears: experienceYears ? Number(experienceYears) : 0,
-        skills: skills.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
-        languages: languages.split(",").map((l) => l.trim()).filter((l) => l.length > 0),
-        profileImage,
-        address: {
-          houseNumber: houseNumber.trim(),
-          street: street.trim(),
-          landmark: landmark.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          country: country.trim(),
-          postalCode: postalCode.trim(),
-        },
-        bankDetails: {
-          accountHolderName: accountHolderName.trim(),
-          bankName: bankName.trim(),
-          accountNumber: accountNumber.trim(),
-          ifscCode: ifscCode.trim(),
-          upiId: upiId.trim(),
-        },
-        notificationPreferences: {
-          bookingAlerts,
-          marketingNotifications,
-          payoutNotifications,
-        },
-      };
+      const formData = new FormData();
 
-      const response = await updateProfile(profilePayload);
+      // 1. Append basic fields
+      formData.append("fullName", fullName.trim());
+      formData.append("bio", bio.trim());
+      formData.append("gender", gender);
+      formData.append("dateOfBirth", dateOfBirth || "");
+      formData.append("serviceProvided", serviceProvided.trim());
+      formData.append("experienceYears", experienceYears ? String(experienceYears) : "0");
+
+      // 2. Handle Image Upload
+      if (selectedImageUri) {
+        const uri = selectedImageUri;
+        const uriParts = uri.split(".");
+        const fileType = uriParts[uriParts.length - 1];
+
+        formData.append("profileImage", {
+          uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
+          name: `profile.${fileType}`,
+          type: `image/${fileType === "jpg" ? "jpeg" : fileType}`,
+        });
+      }
+
+      // 3. Append Arrays (Backend expects key[] for multiple values)
+      const skillArray = skills.split(",").map((s) => s.trim()).filter((s) => s);
+      skillArray.forEach((s) => formData.append("skills[]", s));
+
+      const langArray = languages.split(",").map((l) => l.trim()).filter((l) => l);
+      langArray.forEach((l) => formData.append("languages[]", l));
+
+      // 4. Append Nested Objects using dot notation
+      formData.append("address.houseNumber", houseNumber.trim());
+      formData.append("address.street", street.trim());
+      formData.append("address.landmark", landmark.trim());
+      formData.append("address.city", city.trim());
+      formData.append("address.state", state.trim());
+      formData.append("address.country", country.trim());
+      formData.append("address.postalCode", postalCode.trim());
+
+      formData.append("bankDetails.accountHolderName", accountHolderName.trim());
+      formData.append("bankDetails.bankName", bankName.trim());
+      formData.append("bankDetails.accountNumber", accountNumber.trim());
+      formData.append("bankDetails.ifscCode", ifscCode.trim());
+      formData.append("bankDetails.upiId", upiId.trim());
+
+      formData.append("notificationPreferences.bookingAlerts", String(bookingAlerts));
+      formData.append("notificationPreferences.marketingNotifications", String(marketingNotifications));
+      formData.append("notificationPreferences.payoutNotifications", String(payoutNotifications));
+
+      // Note: Use updateProfile(formData)
+      // IMPORTANT: Ensure your API instance (axios) has headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await updateProfile(formData);
+
       if (response.data && response.data.success) {
-        showCustomPopup("success", "Success", "Your profile has been securely updated.", () => {
+        showCustomPopup("success", "Success", "Profile updated successfully.", () => {
           navigation.goBack();
         });
       }
     } catch (error) {
-      console.error("Update profile error:", error);
-      const errorMsg = error.response?.data?.message || "Failed to commit changes to the backend.";
-      showCustomPopup("error", "Update Failed", errorMsg);
+      console.error("Update error:", error);
+      showCustomPopup("error", "Update Failed", error.response?.data?.message || "Server Error");
     } finally {
       setIsSaving(false);
     }
@@ -229,7 +308,7 @@ export default function ProviderProfileScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        
+
         {/* HEADER BAR */}
         <View style={styles.headerBar}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -240,14 +319,25 @@ export default function ProviderProfileScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-          
+
           {/* PROFILE IMAGE HERO CONTAINER */}
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={46} color={COLORS.subtext} />
-              </View>
-              <TouchableOpacity style={styles.avatarEditButton} activeOpacity={0.8}>
+              {selectedImageUri || profileImage ? (
+                <Image
+                  source={{ uri: selectedImageUri || profileImage }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={46} color={COLORS.subtext} />
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.avatarEditButton}
+                activeOpacity={0.8}
+                onPress={handleSelectImageSource}
+              >
                 <Ionicons name="camera" size={16} color={COLORS.white} />
               </TouchableOpacity>
             </View>
@@ -260,7 +350,7 @@ export default function ProviderProfileScreen() {
             <Ionicons name="person-circle-outline" size={20} color={COLORS.primary} />
             <Text style={styles.sectionTitle}>Personal Details</Text>
           </View>
-          
+
           <View style={styles.card}>
             <View style={styles.inputWrapper}>
               <Text style={styles.label}>Full Name *</Text>
@@ -269,14 +359,14 @@ export default function ProviderProfileScreen() {
 
             <View style={styles.inputWrapper}>
               <Text style={styles.label}>Bio / Description</Text>
-              <TextInput 
-                style={[styles.input, styles.textArea]} 
-                value={bio} 
-                onChangeText={setBio} 
-                placeholder="Tell customers about your qualifications..." 
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell customers about your qualifications..."
                 placeholderTextColor="#94A3B8"
-                multiline 
-                numberOfLines={3} 
+                multiline
+                numberOfLines={3}
               />
             </View>
 
@@ -285,14 +375,14 @@ export default function ProviderProfileScreen() {
                 <Text style={styles.label}>Date of Birth</Text>
                 <TextInput style={styles.input} value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" placeholderTextColor="#94A3B8" />
               </View>
-              
+
               <View style={[styles.inputWrapper, { flex: 1, marginLeft: 6 }]}>
                 <Text style={styles.label}>Gender</Text>
                 <View style={styles.genderRow}>
                   {["male", "female", "other"].map((g) => (
-                    <TouchableOpacity 
-                      key={g} 
-                      style={[styles.genderButton, gender === g && styles.genderActive]} 
+                    <TouchableOpacity
+                      key={g}
+                      style={[styles.genderButton, gender === g && styles.genderActive]}
                       onPress={() => setGender(g)}
                       activeOpacity={0.7}
                     >
@@ -474,17 +564,18 @@ export default function ProviderProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop:30, backgroundColor: COLORS.background },
+  container: { flex: 1, paddingTop: 30, backgroundColor: COLORS.background },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background },
   headerBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border },
   backButton: { padding: 6, borderRadius: 10, backgroundColor: COLORS.background },
   headerTitle: { fontSize: 18, fontWeight: "700", color: COLORS.secondary },
   scrollContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
-  
+
   // Avatar Hero Layout Styles
   avatarContainer: { alignItems: "center", marginBottom: 24 },
   avatarWrapper: { position: "relative", marginBottom: 12 },
   avatarPlaceholder: { width: 90, height: 90, borderRadius: 45, backgroundColor: "#E2E8F0", justifyContent: "center", alignItems: "center", borderWidth: 3, borderColor: COLORS.white },
+  avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: COLORS.white },
   avatarEditButton: { position: "absolute", bottom: 0, right: 0, backgroundColor: COLORS.primary, width: 28, height: 28, borderRadius: 14, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.white },
   avatarNameText: { fontSize: 18, fontWeight: "700", color: COLORS.secondary },
   avatarSubText: { fontSize: 13, color: COLORS.subtext, marginTop: 2 },
@@ -492,7 +583,7 @@ const styles = StyleSheet.create({
   // Section Headers
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginTop: 24, marginBottom: 12, marginLeft: 4, gap: 8 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: COLORS.secondary, letterSpacing: 0.3 },
-  
+
   // Cards and Forms
   card: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.border },
   inputWrapper: { marginBottom: 16 },
@@ -500,23 +591,23 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: "600", color: COLORS.subtext, marginBottom: 8, marginLeft: 2 },
   input: { backgroundColor: COLORS.inputBg, borderRadius: 12, paddingHorizontal: 14, paddingVertical: Platform.OS === "ios" ? 14 : 10, fontSize: 15, color: COLORS.text, borderWidth: 1, borderColor: "transparent" },
   textArea: { minHeight: 80, textAlignVertical: "top" },
-  
+
   // Gender Selection row
   genderRow: { flexDirection: "row", gap: 6, height: 46 },
   genderButton: { flex: 1, backgroundColor: COLORS.inputBg, borderRadius: 12, justifyContent: "center", alignItems: "center" },
   genderActive: { backgroundColor: COLORS.secondary },
   genderText: { fontSize: 13, fontWeight: "600", color: COLORS.subtext, textTransform: "capitalize" },
   genderTextActive: { color: COLORS.white },
-  
+
   // Switches
   switchRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.background },
   switchLabel: { fontSize: 14, fontWeight: "600", color: COLORS.text },
   switchSubLabel: { fontSize: 12, color: COLORS.subtext, marginTop: 2 },
-  
+
   // Submit Button
   saveButton: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 32, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
   saveButtonText: { color: COLORS.white, fontSize: 16, fontWeight: "700" },
-  
+
   // Popups
   popupOverlay: { flex: 1, backgroundColor: "rgba(15, 23, 42, 0.5)", justifyContent: "center", alignItems: "center", paddingHorizontal: 32 },
   popupContainer: { backgroundColor: COLORS.white, borderRadius: 24, padding: 24, width: "100%", maxWidth: 320, alignItems: "center" },

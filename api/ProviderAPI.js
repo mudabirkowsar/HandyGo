@@ -41,11 +41,23 @@ export const loginProvider = async (credentials) => {
     }
 };
 export const registerProvider = (data) => ProviderAPI.post('/provider-auth/register', data);
-export const updateProviderDocs = (data) => ProviderAPI.post('/provider-auth/upload-documents', data);
+export const updateProviderDocs = (formData) => ProviderAPI.post('/provider-auth/upload-documents', formData,
+    {
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
+    }
+);
 
 // Get Provider Profile
 export const getProviderProfile = () => ProviderAPI.get('/providers/me');
-export const updateProfile = (data) => ProviderAPI.put('/providers/update-profile', data);
+export const updateProfile = (data) => ProviderAPI.put('/providers/update-profile', data,
+    {
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
+    }
+);
 export const updateProviderLocation = (coordinates) => ProviderAPI.put('/providers/update-location', coordinates);
 export const updateProviderAvailability = (status) => ProviderAPI.put('/providers/update-availability', { availabilityStatus: status });
 export const fetchMyDashboardReviews = (page = 1, limit = 20) => ProviderAPI.get(`/providers/my-reviews?page=${page}&limit=${limit}`);
