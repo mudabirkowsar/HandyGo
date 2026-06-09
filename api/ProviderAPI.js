@@ -41,13 +41,17 @@ export const loginProvider = async (credentials) => {
     }
 };
 export const registerProvider = (data) => ProviderAPI.post('/provider-auth/register', data);
-export const updateProviderDocs = (formData) => ProviderAPI.post('/provider-auth/upload-documents', formData,
-    {
+export const updateProviderDocs = (formData) => {
+    return ProviderAPI.post('/provider-auth/upload-documents', formData, {
         headers: {
-            "Content-Type": "multipart/form-data",
+            'Content-Type': 'multipart/form-data',
         },
-    }
-);
+        // Very important for large uploads
+        transformRequest: (data, headers) => {
+            return data; 
+        },
+    });
+};
 
 // Get Provider Profile
 export const getProviderProfile = () => ProviderAPI.get('/providers/me');

@@ -36,12 +36,10 @@ const COLORS = {
 };
 
 export default function DocumentsScreen({ navigation }) {
-  // --- UI STATES ---
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  const [activeSlot, setActiveSlot] = useState(null); // 'aadhaarFrontImage', 'aadhaarBackImage', 'selfieImage'
+  const [activeSlot, setActiveSlot] = useState(null);
 
-  // --- FORM DATA ---
   const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [panNumber, setPanNumber] = useState("");
   const [images, setImages] = useState({
@@ -96,29 +94,38 @@ export default function DocumentsScreen({ navigation }) {
 
   // --- API SUBMISSION LOGIC ---
   const handleFinalSubmit = async () => {
-    // 1. Validation
-    if (!aadhaarNumber || !panNumber || !images.aadhaarFrontImage || !images.aadhaarBackImage || !images.selfieImage) {
-      Alert.alert("Incomplete Form", "Please fill in all numbers and upload all 3 photos.");
+    // 1. Strict Validation
+    if (!aadhaarNumber || aadhaarNumber.length < 12) {
+      Alert.alert("Error", "Please enter a valid 12-digit Aadhaar number.");
+      return;
+    }
+    if (!panNumber || panNumber.length < 10) {
+      Alert.alert("Error", "Please enter a valid PAN number.");
+      return;
+    }
+    if (!images.aadhaarFrontImage || !images.aadhaarBackImage || !images.selfieImage) {
+      Alert.alert("Error", "Please upload all three required documents.");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // 2. Prepare FormData (Required for Multer)
       const formData = new FormData();
       formData.append("aadhaarNumber", aadhaarNumber);
-      formData.append("panNumber", panNumber);
+      formData.append("panNumber", panNumber.toUpperCase());
 
-      // Helper to append image files
+      // ENHANCED: Helper to append image files specifically for Multer
       const appendFile = (fieldName, uri) => {
-        const fileName = uri.split("/").pop();
-        const match = /\.(\w+)$/.exec(fileName);
-        const type = match ? `image/${match[1]}` : `image`;
+        const filename = uri.split('/').pop();
+        // Infer the type from the extension
+        const match = /\.(\w+)$/.exec(filename);
+        const ext = match ? match[1].toLowerCase() : 'jpg';
+        const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
         formData.append(fieldName, {
-          uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
-          name: fileName,
+          uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+          name: filename || `${fieldName}.jpg`,
           type: type,
         });
       };
@@ -127,18 +134,22 @@ export default function DocumentsScreen({ navigation }) {
       appendFile("aadhaarBackImage", images.aadhaarBackImage);
       appendFile("selfieImage", images.selfieImage);
 
-      // 3. Call API
       const response = await updateProviderDocs(formData);
 
       if (response.data.success) {
         setIsSubmitting(false);
-        navigation.navigate("ShowPopup");
+        // Navigate to success or profile
+        Alert.alert("Success", "Documents submitted for verification.", [
+          { text: "OK", onPress: () => navigation.goBack() }
+        ]);
       }
     } catch (error) {
       setIsSubmitting(false);
-      console.error("Upload Error:", error);
-      const errorMsg = error.response?.data?.message || "Failed to upload documents. Please try again.";
-      Alert.alert("Upload Failed", errorMsg);
+      console.error("Upload Error:", error.response?.data || error);
+      Alert.alert(
+        "Upload Failed",
+        error.response?.data?.message || "Could not connect to server."
+      );
     }
   };
 
