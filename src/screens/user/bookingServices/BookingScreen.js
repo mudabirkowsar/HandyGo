@@ -74,9 +74,9 @@ const BookingScreen = ({navigation}) => {
   const flatListRef = useRef(null);
 
   useFocusEffect(
-    useCallback(() => {
+    ...[useCallback(() => {
       loadBookings();
-    }, [])
+    }, [])]
   );
 
   const showToast = (message, type = "success") => {
@@ -202,7 +202,6 @@ const BookingScreen = ({navigation}) => {
       });
 
       if (response?.data?.success) {
-        // Updated here to explicitly toggle the persistent Mongoose schema tracking variable directly
         setBookings(prev =>
           prev.map(b => b._id === selectedBooking._id ? { ...b, isReviewed: true } : b)
         );
@@ -230,9 +229,9 @@ const BookingScreen = ({navigation}) => {
     }
   };
 
+  // FIXED: Removed the buggy scrollToIndex engine call to bypass the offscreen indexing crash completely
   const onTabPress = (index) => {
     setActiveTab(index);
-    flatListRef.current?.scrollToIndex({ index, animated: true });
   };
 
   const openDetailsModal = (booking) => {
@@ -324,12 +323,13 @@ const BookingScreen = ({navigation}) => {
             contentContainerStyle={{ paddingBottom: 120, paddingTop: 10 }}
           />
         ) : (
+          /* UPDATED: Beautiful, premium style wrapper block for the empty collection state scenario */
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="calendar-clear-outline" size={44} color={COLORS.subtext} />
+              <Ionicons name="calendar-clear-outline" size={38} color={COLORS.primary} />
             </View>
-            <Text style={styles.emptyText}>No {tabName.toLowerCase()} bookings found</Text>
-            <Text style={styles.emptySubtext}>Your transactional layout cards matching this matrix sector will show here.</Text>
+            <Text style={styles.emptyText}>No {tabName.toLowerCase()} bookings</Text>
+            <Text style={styles.emptySubtext}>You don't have any appointments listed under this category section right now.</Text>
           </View>
         )}
       </View>
@@ -365,7 +365,7 @@ const BookingScreen = ({navigation}) => {
         </TouchableOpacity>
       </View>
 
-      {/* Premium Swipeable Tab Bar */}
+      {/* Premium Tab Bar Wrapper Line Layout */}
       <View style={styles.tabBarContainer}>
         {TABS.map((tab, index) => {
           const isActive = activeTab === index;
@@ -377,32 +377,23 @@ const BookingScreen = ({navigation}) => {
               activeOpacity={0.8}
             >
               <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
-              {isActive && <Animated.View style={styles.activeIndicator} />}
+              {isActive && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* Dynamic Content Switching Engine */}
+      {/* Dynamic Content Switching Engine Layout Node */}
       {loading ? (
         <View style={styles.loadingCenterContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingSyncText}>Syncing booking data history...</Text>
         </View>
       ) : (
-        <FlatList
-          ref={flatListRef}
-          data={TABS}
-          horizontal
-          pagingEnabled
-          onMomentumScrollEnd={(e) => {
-            const index = Math.round(e.nativeEvent.contentOffset.x / width);
-            setActiveTab(index);
-          }}
-          keyExtractor={(item) => item}
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => renderListPage(item)}
-        />
+        /* Render only the currently highlighted tab list module to stay performant & completely remove horizontal scrolling dependencies */
+        <View style={styles.pageDisplayWrapper}>
+          {renderListPage(TABS[activeTab])}
+        </View>
       )}
 
       {/* Detail Modal Engine */}
@@ -497,7 +488,7 @@ const BookingScreen = ({navigation}) => {
                       <Text style={styles.metaBadgeLabel}>Method</Text>
                       <Text style={styles.metaBadgeVal}>{selectedBooking.payment?.method}</Text>
                     </View>
-                    <View style={[styles.metaInfoBadge, { marginLeft: 10 }]}>
+                    <View style={styles.metaInfoBadge, { marginLeft: 10 }}>
                       <Text style={styles.metaBadgeLabel}>Payment Status</Text>
                       <Text style={[styles.metaBadgeVal, selectedBooking.payment?.status === "paid" ? { color: COLORS.primary } : { color: COLORS.warning }]}>
                         {selectedBooking.payment?.status?.toUpperCase()}
@@ -529,7 +520,6 @@ const BookingScreen = ({navigation}) => {
                   </TouchableOpacity>
                 )}
 
-                {/* Updated validation rules here to check against the core `isReviewed` schema token field */}
                 {selectedBooking.bookingStatus === "completed" && !selectedBooking.isReviewed && (
                   <TouchableOpacity style={styles.modalDetailsReviewBtn} activeOpacity={0.8} onPress={() => initReviewWorkflow(selectedBooking)}>
                     <Ionicons name="star" size={16} color={COLORS.white} style={{ marginRight: 6 }} />
@@ -673,6 +663,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 10
+  },
+  pageDisplayWrapper: {
+    flex: 1,
+    width: width,
   },
   toastContainer: {
     position: 'absolute',
@@ -1158,7 +1152,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 10,
-  }
+  },
+  /* REDESIGNED: Premium Empty Fallback States Layout Stylesheet */
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 100,
+    width: "100%",
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: COLORS.secondary,
+    fontSize: 17,
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  emptySubtext: {
+    color: COLORS.subtext,
+    fontSize: 13,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 18,
+    paddingHorizontal: 24,
+  },
 });
 
 export default BookingScreen;

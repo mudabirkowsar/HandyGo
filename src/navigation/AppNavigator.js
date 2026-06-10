@@ -6,7 +6,7 @@ import RegisterScreen from "../screens/auth/RegisterScreen";
 import TabNavigator from "./TabNavigator";
 import SplashScreen from "../SplashScreen";
 import NotificationScreen from "../screens/user/notificationScreens/NotificationScreen";
-import SingleManDetail from "../screens/user/serviceScreens/singleManDetails/SingleManDetail";
+// import SingleManDetail from "../screens/user/serviceScreens/singleManDetails/SingleManDetail";
 import ProviderHome from "../screens/provider/ProviderHome";
 import UpdateAvailabilityScreen from "../screens/provider/updateScreens/UpdateAvailabilityScreen";
 import ViewProfileScreen from "../screens/user/profileScreens/ViewProfileScreen";
@@ -42,7 +42,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ProviderPaymentScreen" component={ProviderPaymentScreen} />
             <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
 
-            <Stack.Screen name="SingleManDetail" component={SingleManDetail} />
+            {/* <Stack.Screen name="SingleManDetail" component={SingleManDetail} /> */}
 
             <Stack.Screen name="ProviderHome" component={ProviderHome} />
             <Stack.Screen name="DocumentsUpload" component={DocumentsScreen} />

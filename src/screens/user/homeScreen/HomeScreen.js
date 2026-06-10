@@ -12,7 +12,7 @@ export default function HomeScreen({navigation}) {
     const dashboardSections = [
         { id: "1", component: <HomeBanners /> },
         { id: "2", component: <HomeServices /> },
-        { id: "3", component: <SomeServicesList /> },
+        // { id: "3", component: <SomeServicesList /> },
         { id: "4", component: <SomeServiceProviders /> },
         { id: "5", component: <DecorationComponent /> },
     ];

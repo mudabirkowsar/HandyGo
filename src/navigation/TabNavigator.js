@@ -1,6 +1,7 @@
 import React from "react";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { StyleSheet, View, Platform, Text } from "react-native";
+// Swapped to material-top-tabs for native swipe gestures
+import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
+import { StyleSheet, View, Platform, Text, Dimensions } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 
 // Import your screens
@@ -10,7 +11,8 @@ import BookingScreen from "../screens/user/bookingServices/BookingScreen";
 import ProfileScreen from "../screens/user/profileScreens/ProfileScreen";
 import ProductsScreen from "../screens/user/products/ProductsScreen";
 
-const Tab = createBottomTabNavigator();
+const Tab = createMaterialTopTabNavigator();
+const { width } = Dimensions.get("window");
 
 const COLORS = {
   primary: "#08B36A",
@@ -23,14 +25,17 @@ const COLORS = {
 export default function TabNavigator() {
   return (
     <Tab.Navigator
+      tabBarPosition="bottom" // Moves the swipeable bar to the bottom
+      initialLayout={{ width: width }}
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarShowLabel: true,
+        swipeEnabled: true, // Enables sliding/swiping between tabs
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.inactive,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIndicatorStyle: { height: 0 }, // Hides the default top-tab line indicator
+        tabBarPressColor: 'transparent', // Removes android ripple distortion over custom wrapper
+        tabBarIcon: ({ focused, color }) => {
           let iconName;
 
           if (route.name === 'Home') {
@@ -38,7 +43,7 @@ export default function TabNavigator() {
           } else if (route.name === 'Services') {
             iconName = focused ? 'grid' : 'grid-outline';
           } else if (route.name === 'Products') {
-            iconName = focused ? 'grid' : 'grid-outline';
+            iconName = focused ? 'basket' : 'basket-outline';
           } else if (route.name === 'Bookings') {
             iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Profile') {
@@ -52,7 +57,7 @@ export default function TabNavigator() {
             ]}>
               <Ionicons 
                 name={iconName} 
-                size={focused ? 24 : 22} 
+                size={focused ? 22 : 20} 
                 color={color} 
               />
             </View>
@@ -63,27 +68,27 @@ export default function TabNavigator() {
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
-        options={{ title: 'Home' }}
+        options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen 
         name="Services" 
         component={ServicesScreen} 
-        options={{ title: 'Explore' }}
+        options={{ tabBarLabel: 'Explore' }}
       />
       <Tab.Screen 
         name="Products" 
         component={ProductsScreen} 
-        options={{ title: 'Products' }}
+        options={{ tabBarLabel: 'Products' }}
       />
       <Tab.Screen 
         name="Bookings" 
         component={BookingScreen} 
-        options={{ title: 'Bookings' }}
+        options={{ tabBarLabel: 'Bookings' }}
       />
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen} 
-        options={{ title: 'Profile' }}
+        options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
   );
@@ -92,14 +97,15 @@ export default function TabNavigator() {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 25 : 15, // Lifted off the bottom for a floating look
-    left: 20,
-    right: 20,
+    bottom: Platform.OS === 'ios' ? 25 : 15,
+    left: 16,
+    right: 16,
     backgroundColor: COLORS.white,
     borderRadius: 25,
     height: 75,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
-    paddingTop: 12,
+    
+    // Centers content inside top-tab layout structure
+    justifyContent: 'center', 
     
     // Shadow for iOS
     shadowColor: COLORS.secondary,
@@ -109,21 +115,24 @@ const styles = StyleSheet.create({
     
     // Elevation for Android
     elevation: 10,
-    borderTopWidth: 0,
+    borderWidth: 0,
   },
   tabBarLabel: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '700',
-    marginBottom: Platform.OS === 'ios' ? 0 : 5,
+    textTransform: 'none', // Prevents Top-Tab navigator from forcing ALL CAPS
+    margin: 0,
+    padding: 0,
+    marginTop: Platform.OS === 'ios' ? 4 : 2,
   },
   iconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   activeIconWrapper: {
-    backgroundColor: COLORS.primary + '15', // Subtle green background for active tab
+    backgroundColor: COLORS.primary + '15', 
   }
 });

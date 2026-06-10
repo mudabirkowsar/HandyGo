@@ -17,24 +17,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = (width - 44) / 2; 
+// Perfect dynamic column width calculation accounting for padding and gap metrics
+const CARD_WIDTH = (width - 48) / 2; 
 
 const COLORS = {
   primary: "#08B36A",
+  primaryLight: "#E6F7F0",
   secondary: "#0F172A",
   background: "#F8FAFC",
   card: "#FFFFFF",
-  text: "#111827",
-  subtext: "#6B7280",
-  border: "#E5E7EB",
+  text: "#1E293B",
+  subtext: "#64748B",
+  border: "#E2E8F0",
   white: "#FFFFFF",
   danger: "#EF4444",
+  warning: "#F59E0B",
+  offline: "#94A3B8",
 };
 
 const SomeServiceProviders = () => {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const navigation = useNavigation();
 
   const [alertVisible, setAlertVisible] = useState(false);
@@ -88,7 +91,12 @@ const SomeServiceProviders = () => {
 
   const renderHeader = () => (
     <View style={styles.headerSection}>
-      <Text style={styles.sectionTitle}>Featured Providers</Text>
+      <View style={styles.headerTitleRow}>
+        <Text style={styles.sectionTitle}>Featured Experts</Text>
+        <TouchableOpacity activeOpacity={0.7}>
+          <Text style={styles.seeAllText}>See All</Text>
+        </TouchableOpacity>
+      </View>
       <Text style={styles.sectionSubtitle}>Top certified experts active near your area</Text>
     </View>
   );
@@ -111,79 +119,96 @@ const SomeServiceProviders = () => {
         numColumns={2}
         columnWrapperStyle={styles.rowWrapper}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={false} 
+        nestedScrollEnabled={true}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="account-search-outline" size={48} color={COLORS.subtext} />
             <Text style={styles.emptyText}>No service providers found nearby.</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.providerCard}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate("ProviderDetail", { providerId: item._id })}
-          >
-            <View style={styles.imageContainer}>
-              {item.profileImage ? (
-                <Image source={{ uri: item.profileImage }} style={styles.profilePic} />
-              ) : (
-                <View style={[styles.profilePic, styles.fallbackAvatar]}>
-                  <Text style={styles.avatarText}>
-                    {item.fullName ? item.fullName.charAt(0).toUpperCase() : "P"}
-                  </Text>
-                </View>
-              )}
-              {item.isOnline && <View style={styles.onlineBadge} />}
-
-              <View style={styles.distanceBadge}>
-                <Ionicons name="location" size={10} color={COLORS.white} />
-                <Text style={styles.distanceText}>
-                  {item.distanceFromUserKm ? item.distanceFromUserKm.toFixed(1) : "0.0"} km
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.infoBlock}>
-              <Text style={styles.providerName} numberOfLines={1}>
-                {item.fullName}
-              </Text>
-              <Text style={styles.categoryTag} numberOfLines={1}>
-                {item.serviceProvided}
-              </Text>
-
-              {item.bio ? (
-                <Text style={styles.bioText} numberOfLines={1}>
-                  {item.bio}
-                </Text>
-              ) : (
-                <Text style={styles.bioPlaceholder} numberOfLines={1}>
-                  No bio shared yet
-                </Text>
-              )}
-
-              <View style={styles.divider} />
-
-              <View style={styles.metricsRow}>
-                <View style={styles.ratingGroup}>
-                  <Ionicons name="star" size={13} color="#F59E0B" />
-                  <Text style={styles.ratingText}>
-                    {item.averageRating && item.averageRating > 0 ? item.averageRating.toFixed(1) : "New"}
-                  </Text>
-                  {item.totalReviews > 0 && (
-                    <Text style={styles.reviewsText}>({item.totalReviews})</Text>
-                  )}
+        renderItem={({ item }) => {
+          const initials = item.fullName ? item.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "P";
+          
+          return (
+            <TouchableOpacity
+              style={styles.providerCard}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate("ProviderDetail", { providerId: item._id })}
+            >
+              {/* Media Container Top Block */}
+              <View style={styles.imageContainer}>
+                {item.profileImage ? (
+                  <Image source={{ uri: item.profileImage }} style={styles.profilePic} />
+                ) : (
+                  <View style={styles.fallbackAvatar}>
+                    <Text style={styles.avatarText}>{initials}</Text>
+                  </View>
+                )}
+                
+                {/* Status Indicator Overlays */}
+                <View style={[styles.statusBadge, { backgroundColor: item.isOnline ? COLORS.primary : COLORS.offline }]}>
+                  <View style={styles.statusDot} />
+                  <Text style={styles.statusText}>{item.isOnline ? "Online" : "Offline"}</Text>
                 </View>
 
-                <Text style={styles.priceText} numberOfLines={1}>
-                  ₹{item.perDayPrice}
-                  <Text style={styles.perDayLabel}>/d</Text>
-                </Text>
+                {/* Distance Badge */}
+                <View style={styles.distanceBadge}>
+                  <Ionicons name="location" size={11} color={COLORS.white} />
+                  <Text style={styles.distanceText}>
+                    {item.distanceFromUserKm ? item.distanceFromUserKm.toFixed(1) : "0.0"} km
+                  </Text>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
+
+              {/* Information Content Block */}
+              <View style={styles.infoBlock}>
+                <Text style={styles.providerName} numberOfLines={1}>
+                  {item.fullName}
+                </Text>
+                
+                <View style={styles.tagContainer}>
+                  <Text style={styles.categoryTag} numberOfLines={1}>
+                    {item.serviceProvided}
+                  </Text>
+                </View>
+
+                {item.bio ? (
+                  <Text style={styles.bioText} numberOfLines={2}>
+                    {item.bio}
+                  </Text>
+                ) : (
+                  <Text style={styles.bioPlaceholder} numberOfLines={2}>
+                    Professional specialist ready to assist you.
+                  </Text>
+                )}
+
+                <View style={styles.divider} />
+
+                {/* Rating & Rate Metrics Row */}
+                <View style={styles.metricsRow}>
+                  <View style={styles.ratingGroup}>
+                    <Ionicons name="star" size={13} color={COLORS.warning} />
+                    <Text style={styles.ratingText}>
+                      {item.averageRating && item.averageRating > 0 ? item.averageRating.toFixed(1) : "New"}
+                    </Text>
+                    {item.totalReviews > 0 && (
+                      <Text style={styles.reviewsText}>({item.totalReviews})</Text>
+                    )}
+                  </View>
+
+                  <Text style={styles.priceText} numberOfLines={1}>
+                    ₹{item.perDayPrice || "—"}
+                    {item.perDayPrice > 0 && <Text style={styles.perDayLabel}>/d</Text>}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
 
+      {/* Alert Component */}
       <Modal visible={alertVisible} transparent animationType="fade">
         <View style={styles.alertOverlay}>
           <View style={styles.alertBox}>
@@ -218,56 +243,64 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
-    paddingVertical:20,
+    paddingHorizontal: 16,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.background,
+    paddingVertical: 40,
   },
   listContainer: {
-    padding: 16,
-    paddingBottom: 32,
+    paddingVertical: 16,
   },
   headerSection: {
-    marginBottom: 20,
-    marginTop: 4,
+    marginBottom: 16,
     width: "100%",
   },
+  headerTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: COLORS.secondary,
+    letterSpacing: -0.3,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.primary,
   },
   sectionSubtitle: {
     fontSize: 13,
     color: COLORS.subtext,
-    marginTop: 3,
+    marginTop: 4,
   },
   rowWrapper: {
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 16,
   },
   providerCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 14,
+    borderRadius: 16,
     width: CARD_WIDTH,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: COLORS.border,
-    overflow: "hidden",
+    elevation: 3,
     shadowColor: COLORS.secondary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
   },
   imageContainer: {
     width: "100%",
-    height: 110,
+    height: 120,
     backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
     position: "relative",
   },
   profilePic: {
@@ -276,40 +309,54 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   fallbackAvatar: {
-    backgroundColor: COLORS.border,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#EFF6FF", // Modern soft blue default gradient flavor
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "700",
-    color: COLORS.subtext,
+    color: "#3B82F6",
+    letterSpacing: 0.5,
   },
-  onlineBadge: {
+  statusBadge: {
     position: "absolute",
     top: 10,
-    right: 10,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.primary,
-    borderWidth: 2,
-    borderColor: COLORS.white,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
     zIndex: 2,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.white,
+    marginRight: 4,
+  },
+  statusText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: "700",
   },
   distanceBadge: {
     position: "absolute",
-    bottom: 8,
-    left: 8,
+    bottom: 10,
+    right: 10,
     backgroundColor: "rgba(15, 23, 42, 0.65)",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   distanceText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "600",
     color: COLORS.white,
     marginLeft: 3,
@@ -318,35 +365,43 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   providerName: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: COLORS.text,
+    letterSpacing: -0.1,
+  },
+  tagContainer: {
+    alignSelf: "flex-start",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 6,
+    marginBottom: 8,
   },
   categoryTag: {
     fontSize: 11,
     fontWeight: "700",
     color: COLORS.primary,
-    marginTop: 2,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
+    textTransform: "capitalize",
   },
   bioText: {
     fontSize: 12,
     color: COLORS.subtext,
-    marginTop: 4,
-    height: 16,
+    lineHeight: 16,
+    height: 32, // Accommodates exactly 2 layout calculation strings safely
   },
   bioPlaceholder: {
     fontSize: 12,
-    color: COLORS.border,
+    color: COLORS.subtext,
     fontStyle: "italic",
-    marginTop: 4,
-    height: 16,
+    lineHeight: 16,
+    height: 32,
   },
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
-    marginVertical: 10,
+    marginVertical: 12,
   },
   metricsRow: {
     flexDirection: "row",
@@ -359,9 +414,9 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     color: COLORS.text,
-    marginLeft: 3,
+    marginLeft: 4,
   },
   reviewsText: {
     fontSize: 11,
@@ -369,12 +424,12 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   priceText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
     color: COLORS.secondary,
   },
   perDayLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "400",
     color: COLORS.subtext,
   },
